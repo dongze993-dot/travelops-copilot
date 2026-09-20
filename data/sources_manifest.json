@@ -1,0 +1,101 @@
+{
+  "dataset_name": "TravelOps Copilot synthetic attraction knowledge",
+  "dataset_version": "synthetic-v1",
+  "created_for": "local development, demo, and evaluation only",
+  "created_at": "2026-09-20",
+  "language": "zh-CN",
+  "record_count": 12,
+  "provenance_statement": "Every record in this manifest and attractions.json is repository-authored fictional/synthetic content. No record is scraped, copied, or represented as a real venue, price, opening hour, vendor, customer, or public-service source.",
+  "usage_restrictions": [
+    "Not for booking, navigation, safety, medical, financial, or purchasing decisions.",
+    "Not evidence of real-world availability, pricing, opening hours, or service quality.",
+    "Replace with authorized and traceable data before any production use."
+  ],
+  "license_note": "No third-party data license applies to these synthetic records. Reuse is governed by the repository-level license, if one is supplied.",
+  "sources": [
+    {
+      "source_id": "syn-hz-001",
+      "title": "合成条目：澜汀湿地公园",
+      "uri": "synthetic://travelops/syn-hz-001",
+      "content_type": "repository-authored fictional snippet",
+      "rights": "synthetic; repository-level license applies"
+    },
+    {
+      "source_id": "syn-hz-002",
+      "title": "合成条目：云湖露营地",
+      "uri": "synthetic://travelops/syn-hz-002",
+      "content_type": "repository-authored fictional snippet",
+      "rights": "synthetic; repository-level license applies"
+    },
+    {
+      "source_id": "syn-sh-001",
+      "title": "合成条目：白鹭湾城市绿道",
+      "uri": "synthetic://travelops/syn-sh-001",
+      "content_type": "repository-authored fictional snippet",
+      "rights": "synthetic; repository-level license applies"
+    },
+    {
+      "source_id": "syn-cd-001",
+      "title": "合成条目：云岚山国家森林步道",
+      "uri": "synthetic://travelops/syn-cd-001",
+      "content_type": "repository-authored fictional snippet",
+      "rights": "synthetic; repository-level license applies"
+    },
+    {
+      "source_id": "syn-cd-002",
+      "title": "合成条目：蜀锦手作体验馆",
+      "uri": "synthetic://travelops/syn-cd-002",
+      "content_type": "repository-authored fictional snippet",
+      "rights": "synthetic; repository-level license applies"
+    },
+    {
+      "source_id": "syn-qd-001",
+      "title": "合成条目：海风艺术码头",
+      "uri": "synthetic://travelops/syn-qd-001",
+      "content_type": "repository-authored fictional snippet",
+      "rights": "synthetic; repository-level license applies"
+    },
+    {
+      "source_id": "syn-qd-002",
+      "title": "合成条目：海岸线骑行驿站",
+      "uri": "synthetic://travelops/syn-qd-002",
+      "content_type": "repository-authored fictional snippet",
+      "rights": "synthetic; repository-level license applies"
+    },
+    {
+      "source_id": "syn-sz-001",
+      "title": "合成条目：青砖非遗工坊",
+      "uri": "synthetic://travelops/syn-sz-001",
+      "content_type": "repository-authored fictional snippet",
+      "rights": "synthetic; repository-level license applies"
+    },
+    {
+      "source_id": "syn-xa-001",
+      "title": "合成条目：星河天文馆",
+      "uri": "synthetic://travelops/syn-xa-001",
+      "content_type": "repository-authored fictional snippet",
+      "rights": "synthetic; repository-level license applies"
+    },
+    {
+      "source_id": "syn-xm-001",
+      "title": "合成条目：岛屿书店",
+      "uri": "synthetic://travelops/syn-xm-001",
+      "content_type": "repository-authored fictional snippet",
+      "rights": "synthetic; repository-level license applies"
+    },
+    {
+      "source_id": "syn-gz-001",
+      "title": "合成条目：老城早茶铺",
+      "uri": "synthetic://travelops/syn-gz-001",
+      "content_type": "repository-authored fictional snippet",
+      "rights": "synthetic; repository-level license applies"
+    },
+    {
+      "source_id": "syn-nj-001",
+      "title": "合成条目：雨花茶研学馆",
+      "uri": "synthetic://travelops/syn-nj-001",
+      "content_type": "repository-authored fictional snippet",
+      "rights": "synthetic; repository-level license applies"
+    }
+  ]
+}
