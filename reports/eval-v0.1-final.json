@@ -1,0 +1,1242 @@
+{
+  "report_schema_version": "1",
+  "project": "TravelOps Copilot",
+  "generated_at_utc": "2026-09-20T13:24:47.509095+00:00",
+  "base_url": "http://127.0.0.1:8000",
+  "suite": "evals\\v1.jsonl",
+  "suite_sha256": "c5581ff2fc417c58d5225277ff795e69bf99f7650f7a845e5b917c59d026f2c1",
+  "runner": {
+    "path": "scripts/run_eval.py",
+    "python": "3.12.14",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "http_black_box_only": true
+  },
+  "summary": {
+    "selected_cases": 42,
+    "passed_cases": 42,
+    "failed_cases": 0,
+    "skipped_cases": 0,
+    "contract_pass_rate_percent": 100.0,
+    "elapsed_ms": 575.53,
+    "successful_case_latency_p50_ms": 5.19,
+    "successful_case_latency_p95_ms": 16.05
+  },
+  "scope_note": "These results test HTTP/API contract behavior against synthetic demo data. They do not measure live travel accuracy, bookings, real CRM delivery, or user outcomes.",
+  "results": [
+    {
+      "case_id": "V1-001",
+      "title": "健康检查返回确定性 mock 模式",
+      "tags": [
+        "contract",
+        "health"
+      ],
+      "source_scope": "no external data",
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 255.57,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 200, got 200"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected status == 'ok', got 'ok'"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected mode == 'deterministic_mock', got 'deterministic_mock'"
+        },
+        {
+          "passed": true,
+          "op": "path_gte",
+          "message": "expected knowledge_records >= 1, got 12"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-002",
+      "title": "杭州基础检索返回结构化候选",
+      "tags": [
+        "retrieval",
+        "city"
+      ],
+      "source_scope": "synthetic-v1",
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 7.25,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 200, got 200"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected destination == '杭州', got '杭州'"
+        },
+        {
+          "passed": true,
+          "op": "path_length_gte",
+          "message": "expected len(items) >= 1, got 2"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected items.0.city == '杭州', got '杭州'"
+        },
+        {
+          "passed": true,
+          "op": "path_exists",
+          "message": "path exists: items.0.source_url"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-003",
+      "title": "杭州自然偏好检索保留合成引用",
+      "tags": [
+        "retrieval",
+        "citation",
+        "interest"
+      ],
+      "source_scope": "synthetic-v1",
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 4.58,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 200, got 200"
+        },
+        {
+          "passed": true,
+          "op": "path_length_gte",
+          "message": "expected len(items) >= 1, got 2"
+        },
+        {
+          "passed": true,
+          "op": "path_length_gte",
+          "message": "expected len(citations) >= 1, got 2"
+        },
+        {
+          "passed": true,
+          "op": "path_starts_with",
+          "message": "expected citations.0.uri to start with 'synthetic://travelops/', got 'synthetic://travelops/syn-hz-001'"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-004",
+      "title": "上海检索按城市返回候选",
+      "tags": [
+        "retrieval",
+        "city"
+      ],
+      "source_scope": "synthetic-v1",
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 6.18,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 200, got 200"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected destination == '上海', got '上海'"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected items.0.city == '上海', got '上海'"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-005",
+      "title": "苏州文化检索返回本城候选",
+      "tags": [
+        "retrieval",
+        "city",
+        "interest"
+      ],
+      "source_scope": "synthetic-v1",
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 5.19,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 200, got 200"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected items.0.city == '苏州', got '苏州'"
+        },
+        {
+          "passed": true,
+          "op": "path_contains",
+          "message": "expected items.0.tags to contain '文化', got ['文化', '手作', '慢节奏', '室内']"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-006",
+      "title": "青岛运动检索可返回结构化来源",
+      "tags": [
+        "retrieval",
+        "citation"
+      ],
+      "source_scope": "synthetic-v1",
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 4.83,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 200, got 200"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected items.0.city == '青岛', got '青岛'"
+        },
+        {
+          "passed": true,
+          "op": "path_exists",
+          "message": "path exists: citations.0.source_id"
+        },
+        {
+          "passed": true,
+          "op": "path_exists",
+          "message": "path exists: citations.0.relevance"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-007",
+      "title": "检索拒绝空目的地",
+      "tags": [
+        "validation",
+        "retrieval"
+      ],
+      "source_scope": "no external data",
+      "passed": true,
+      "http_status": 422,
+      "request_duration_ms": 4.6,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 422, got 422"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-008",
+      "title": "检索拒绝小于最小值的 limit",
+      "tags": [
+        "validation",
+        "retrieval"
+      ],
+      "source_scope": "synthetic-v1",
+      "passed": true,
+      "http_status": 422,
+      "request_duration_ms": 4.41,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 422, got 422"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-009",
+      "title": "检索拒绝超过上限的 limit",
+      "tags": [
+        "validation",
+        "retrieval"
+      ],
+      "source_scope": "synthetic-v1",
+      "passed": true,
+      "http_status": 422,
+      "request_duration_ms": 3.88,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 422, got 422"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-010",
+      "title": "未覆盖目的地返回空候选而不伪造来源",
+      "tags": [
+        "retrieval",
+        "no-coverage",
+        "boundary"
+      ],
+      "source_scope": "synthetic-v1",
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 4.73,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 200, got 200"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected destination == '不存在城市', got '不存在城市'"
+        },
+        {
+          "passed": true,
+          "op": "path_length_eq",
+          "message": "expected len(items) == 0, got 0"
+        },
+        {
+          "passed": true,
+          "op": "path_length_eq",
+          "message": "expected len(citations) == 0, got 0"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-011",
+      "title": "杭州两天正常规划输出核心结构",
+      "tags": [
+        "planning",
+        "contract"
+      ],
+      "source_scope": "synthetic-v1",
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 15.18,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 200, got 200"
+        },
+        {
+          "passed": true,
+          "op": "path_starts_with",
+          "message": "expected plan_id to start with 'PLAN-', got 'PLAN-3EEC103B9D'"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected request_summary.destination == '杭州', got '杭州'"
+        },
+        {
+          "passed": true,
+          "op": "path_length_eq",
+          "message": "expected len(itinerary) == 2, got 2"
+        },
+        {
+          "passed": true,
+          "op": "path_exists",
+          "message": "path exists: budget.estimated_total_cny"
+        },
+        {
+          "passed": true,
+          "op": "path_exists",
+          "message": "path exists: validation.passed"
+        },
+        {
+          "passed": true,
+          "op": "path_length_gte",
+          "message": "expected len(workflow_trace) >= 5, got 5"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-012",
+      "title": "单日规划保留一天行程结构",
+      "tags": [
+        "planning",
+        "days"
+      ],
+      "source_scope": "synthetic-v1",
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 13.97,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 200, got 200"
+        },
+        {
+          "passed": true,
+          "op": "path_length_eq",
+          "message": "expected len(itinerary) == 1, got 1"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected itinerary.0.day == 1, got 1"
+        },
+        {
+          "passed": true,
+          "op": "path_length_gte",
+          "message": "expected len(itinerary.0.items) >= 1, got 1"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected budget.currency == 'CNY', got 'CNY'"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-013",
+      "title": "三天规划按请求保留覆盖天数",
+      "tags": [
+        "planning",
+        "coverage"
+      ],
+      "source_scope": "synthetic-v1",
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 12.7,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 200, got 200"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected request_summary.days == 3, got 3"
+        },
+        {
+          "passed": true,
+          "op": "path_length_eq",
+          "message": "expected len(itinerary) == 3, got 3"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected validation.coverage_ok == True, got True"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-014",
+      "title": "无兴趣列表时采用确定性默认偏好",
+      "tags": [
+        "planning",
+        "defaults"
+      ],
+      "source_scope": "synthetic-v1",
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 15.74,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 200, got 200"
+        },
+        {
+          "passed": true,
+          "op": "path_contains",
+          "message": "expected request_summary.interests to contain '城市漫游', got ['城市漫游', '人文']"
+        },
+        {
+          "passed": true,
+          "op": "path_contains",
+          "message": "expected request_summary.interests to contain '人文', got ['城市漫游', '人文']"
+        },
+        {
+          "passed": true,
+          "op": "path_length_gte",
+          "message": "expected len(citations) >= 1, got 1"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-015",
+      "title": "重复兴趣在请求摘要中去重",
+      "tags": [
+        "planning",
+        "normalization"
+      ],
+      "source_scope": "synthetic-v1",
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 16.05,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 200, got 200"
+        },
+        {
+          "passed": true,
+          "op": "path_length_eq",
+          "message": "expected len(request_summary.interests) == 2, got 2"
+        },
+        {
+          "passed": true,
+          "op": "path_contains",
+          "message": "expected request_summary.interests to contain '自然', got ['自然', '文化']"
+        },
+        {
+          "passed": true,
+          "op": "path_contains",
+          "message": "expected request_summary.interests to contain '文化', got ['自然', '文化']"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-016",
+      "title": "低预算触发一次可见修订",
+      "tags": [
+        "planning",
+        "budget",
+        "revision"
+      ],
+      "source_scope": "synthetic-v1",
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 11.61,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 200, got 200"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected validation.revision_count == 1, got 1"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected validation.passed == False, got False"
+        },
+        {
+          "passed": true,
+          "op": "array_contains_path",
+          "message": "expected one workflow_trace.step == 'revise_once', got ['parse', 'retrieve', 'plan', 'validate', 'revise_once', 'finalize']"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-017",
+      "title": "未覆盖目的地进入人工确认而不编造推荐",
+      "tags": [
+        "planning",
+        "no-coverage",
+        "manual-review",
+        "trace"
+      ],
+      "source_scope": "synthetic-v1",
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 11.13,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 200, got 200"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected workflow_trace.1.step == 'retrieve', got 'retrieve'"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected workflow_trace.1.status == 'warning', got 'warning'"
+        },
+        {
+          "passed": true,
+          "op": "path_length_eq",
+          "message": "expected len(citations) == 0, got 0"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected itinerary.0.items.0.source_id == 'manual-review', got 'manual-review'"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected validation.passed == False, got False"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-018",
+      "title": "规划可显式创建模拟跟进工单",
+      "tags": [
+        "planning",
+        "ticket",
+        "workflow"
+      ],
+      "source_scope": "synthetic-v1",
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 22.65,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 200, got 200"
+        },
+        {
+          "passed": true,
+          "op": "path_not_null",
+          "message": "expected non-null at ticket, got {'title': '行程方案跟进：杭州 1 天', 'description': '由 TravelOps Copilot 自动创建的模拟 CRM 跟进工单。预算估算：648.00 元；校验结果：通过。', 'contact_name': '评测合成用户', 'priority': 'normal', 'source_plan_id': 'PLAN-F9FBB61337', 'metadata': {'destination': '杭州', 'days': 1, 'workflow': 'deterministic_mock'}, 'ticket_id': 'TCK-F5CBF89D00', 'status': 'open', 'created_at': '2026-09-20T13:24:47Z', 'updated_at': '2026-09-20T13:24:47Z'}"
+        },
+        {
+          "passed": true,
+          "op": "path_starts_with",
+          "message": "expected ticket.ticket_id to start with 'TCK-', got 'TCK-F5CBF89D00'"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected ticket.source_plan_id == 'PLAN-F9FBB61337', got 'PLAN-F9FBB61337'"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected ticket.metadata.workflow == 'deterministic_mock', got 'deterministic_mock'"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-019",
+      "title": "自动创建的模拟工单可被查询",
+      "tags": [
+        "ticket",
+        "query"
+      ],
+      "source_scope": "local mock CRM only",
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 8.25,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 200, got 200"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected ticket_id == 'TCK-F5CBF89D00', got 'TCK-F5CBF89D00'"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected status == 'open', got 'open'"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected metadata.workflow == 'deterministic_mock', got 'deterministic_mock'"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-020",
+      "title": "未请求跟进时规划不创建工单",
+      "tags": [
+        "planning",
+        "ticket"
+      ],
+      "source_scope": "synthetic-v1",
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 12.61,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 200, got 200"
+        },
+        {
+          "passed": true,
+          "op": "path_is_null",
+          "message": "expected null at ticket, got None"
+        },
+        {
+          "passed": true,
+          "op": "array_contains_path",
+          "message": "expected one workflow_trace.step == 'finalize', got ['parse', 'retrieve', 'plan', 'validate', 'finalize']"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-021",
+      "title": "规划拒绝零天",
+      "tags": [
+        "validation",
+        "planning"
+      ],
+      "source_scope": "no external data",
+      "passed": true,
+      "http_status": 422,
+      "request_duration_ms": 3.04,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 422, got 422"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-022",
+      "title": "规划拒绝超过上限的天数",
+      "tags": [
+        "validation",
+        "planning"
+      ],
+      "source_scope": "no external data",
+      "passed": true,
+      "http_status": 422,
+      "request_duration_ms": 2.81,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 422, got 422"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-023",
+      "title": "规划拒绝零位旅客",
+      "tags": [
+        "validation",
+        "planning"
+      ],
+      "source_scope": "no external data",
+      "passed": true,
+      "http_status": 422,
+      "request_duration_ms": 3.46,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 422, got 422"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-024",
+      "title": "规划拒绝零预算",
+      "tags": [
+        "validation",
+        "budget"
+      ],
+      "source_scope": "no external data",
+      "passed": true,
+      "http_status": 422,
+      "request_duration_ms": 3.02,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 422, got 422"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-025",
+      "title": "规划拒绝超过预算上限的输入",
+      "tags": [
+        "validation",
+        "budget"
+      ],
+      "source_scope": "no external data",
+      "passed": true,
+      "http_status": 422,
+      "request_duration_ms": 3.81,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 422, got 422"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-026",
+      "title": "规划拒绝未定义的出行风格",
+      "tags": [
+        "validation",
+        "enum"
+      ],
+      "source_scope": "no external data",
+      "passed": true,
+      "http_status": 422,
+      "request_duration_ms": 2.95,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 422, got 422"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-027",
+      "title": "规划拒绝只含空白的目的地",
+      "tags": [
+        "validation",
+        "destination"
+      ],
+      "source_scope": "no external data",
+      "passed": true,
+      "http_status": 422,
+      "request_duration_ms": 2.89,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 422, got 422"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-028",
+      "title": "规划拒绝超过兴趣数量上限的输入",
+      "tags": [
+        "validation",
+        "length"
+      ],
+      "source_scope": "no external data",
+      "passed": true,
+      "http_status": 422,
+      "request_duration_ms": 4.26,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 422, got 422"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-029",
+      "title": "规划拒绝超长备注",
+      "tags": [
+        "validation",
+        "length"
+      ],
+      "source_scope": "no external data",
+      "passed": true,
+      "http_status": 422,
+      "request_duration_ms": 2.99,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 422, got 422"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-030",
+      "title": "规划引用均有合成 URI 前缀",
+      "tags": [
+        "planning",
+        "citation",
+        "data-boundary"
+      ],
+      "source_scope": "synthetic-v1",
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 7.8,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 200, got 200"
+        },
+        {
+          "passed": true,
+          "op": "path_length_gte",
+          "message": "expected len(citations) >= 1, got 2"
+        },
+        {
+          "passed": true,
+          "op": "array_all_path_starts_with",
+          "message": "expected every citations.uri to start with 'synthetic://travelops/', got ['synthetic://travelops/syn-hz-001', 'synthetic://travelops/syn-hz-002']"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-031",
+      "title": "行程项带可追溯来源 ID",
+      "tags": [
+        "planning",
+        "citation",
+        "traceability"
+      ],
+      "source_scope": "synthetic-v1",
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 10.73,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 200, got 200"
+        },
+        {
+          "passed": true,
+          "op": "path_starts_with",
+          "message": "expected itinerary.0.items.0.source_id to start with 'syn-', got 'syn-qd-002'"
+        },
+        {
+          "passed": true,
+          "op": "path_type",
+          "message": "expected itinerary.0.items.0.estimated_cost_cny type 'number', got 'number'"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-032",
+      "title": "高预算方案通过预算校验并保留额度",
+      "tags": [
+        "planning",
+        "budget"
+      ],
+      "source_scope": "synthetic-v1",
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 10.08,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 200, got 200"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected validation.within_budget == True, got True"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected validation.passed == True, got True"
+        },
+        {
+          "passed": true,
+          "op": "path_gte",
+          "message": "expected budget.remaining_cny >= 0, got 4510.76"
+        },
+        {
+          "passed": true,
+          "op": "path_lte",
+          "message": "expected budget.estimated_total_cny <= 5000, got 489.24"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-033",
+      "title": "预算明细包含可审查行项目",
+      "tags": [
+        "planning",
+        "budget",
+        "explainability"
+      ],
+      "source_scope": "synthetic-v1",
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 10.04,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 200, got 200"
+        },
+        {
+          "passed": true,
+          "op": "path_length_eq",
+          "message": "expected len(budget.line_items) == 5, got 5"
+        },
+        {
+          "passed": true,
+          "op": "path_exists",
+          "message": "path exists: budget.line_items.0.assumption"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected budget.budget_cap_cny == 6000, got 6000.0"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-034",
+      "title": "手动创建模拟工单返回持久化记录",
+      "tags": [
+        "ticket",
+        "create"
+      ],
+      "source_scope": "local mock CRM only",
+      "passed": true,
+      "http_status": 201,
+      "request_duration_ms": 11.32,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 201, got 201"
+        },
+        {
+          "passed": true,
+          "op": "path_starts_with",
+          "message": "expected ticket_id to start with 'TCK-', got 'TCK-EDA8B85413'"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected status == 'open', got 'open'"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected metadata.fixture == 'v1', got 'v1'"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-035",
+      "title": "按 ID 查询手动创建的模拟工单",
+      "tags": [
+        "ticket",
+        "query"
+      ],
+      "source_scope": "local mock CRM only",
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 6.5,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 200, got 200"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected ticket_id == 'TCK-EDA8B85413', got 'TCK-EDA8B85413'"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected contact_name == '评测合成用户', got '评测合成用户'"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected priority == 'normal', got 'normal'"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-036",
+      "title": "按合成联系人筛选模拟工单",
+      "tags": [
+        "ticket",
+        "list"
+      ],
+      "source_scope": "local mock CRM only",
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 6.35,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 200, got 200"
+        },
+        {
+          "passed": true,
+          "op": "path_type",
+          "message": "expected  type 'array', got 'array'"
+        },
+        {
+          "passed": true,
+          "op": "path_length_gte",
+          "message": "expected len(<root>) >= 1, got 4"
+        },
+        {
+          "passed": true,
+          "op": "array_contains_path",
+          "message": "expected one <root>.ticket_id == 'TCK-EDA8B85413', got ['TCK-F5CBF89D00', 'TCK-EDA8B85413', 'TCK-475083C54A', 'TCK-4A31864B19']"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-037",
+      "title": "工单拒绝过短标题",
+      "tags": [
+        "ticket",
+        "validation"
+      ],
+      "source_scope": "no external data",
+      "passed": true,
+      "http_status": 422,
+      "request_duration_ms": 2.59,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 422, got 422"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-038",
+      "title": "工单拒绝未定义优先级",
+      "tags": [
+        "ticket",
+        "validation"
+      ],
+      "source_scope": "no external data",
+      "passed": true,
+      "http_status": 422,
+      "request_duration_ms": 2.91,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 422, got 422"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-039",
+      "title": "未知模拟工单返回 404",
+      "tags": [
+        "ticket",
+        "error"
+      ],
+      "source_scope": "local mock CRM only",
+      "passed": true,
+      "http_status": 404,
+      "request_duration_ms": 4.55,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 404, got 404"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-040",
+      "title": "工单列表拒绝非法 limit",
+      "tags": [
+        "ticket",
+        "validation"
+      ],
+      "source_scope": "local mock CRM only",
+      "passed": true,
+      "http_status": 422,
+      "request_duration_ms": 3.34,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 422, got 422"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-041",
+      "title": "检索结果每条候选保留合成来源字段",
+      "tags": [
+        "retrieval",
+        "data-boundary",
+        "provenance"
+      ],
+      "source_scope": "synthetic-v1",
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 4.27,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 200, got 200"
+        },
+        {
+          "passed": true,
+          "op": "path_length_eq",
+          "message": "expected len(items) == 2, got 2"
+        },
+        {
+          "passed": true,
+          "op": "array_all_path_starts_with",
+          "message": "expected every items.source_url to start with 'synthetic://travelops/', got ['synthetic://travelops/syn-cd-001', 'synthetic://travelops/syn-cd-002']"
+        }
+      ]
+    },
+    {
+      "case_id": "V1-042",
+      "title": "引用内容说明使用本地资料而非实时预订",
+      "tags": [
+        "planning",
+        "data-boundary",
+        "trace"
+      ],
+      "source_scope": "synthetic-v1",
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 10.05,
+      "assertions": [
+        {
+          "passed": true,
+          "op": "status_code",
+          "message": "expected HTTP 200, got 200"
+        },
+        {
+          "passed": true,
+          "op": "path_exists",
+          "message": "path exists: citations.0.excerpt"
+        },
+        {
+          "passed": true,
+          "op": "path_contains",
+          "message": "expected workflow_trace.1.detail to contain '本地资料', got '从本地资料检索到 1 个可引用点位。'"
+        },
+        {
+          "passed": true,
+          "op": "path_equals",
+          "message": "expected request_summary.mock_mode == True, got True"
+        }
+      ]
+    }
+  ]
+}

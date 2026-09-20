@@ -1,0 +1,77 @@
+name: Verify demo
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+      - name: Compile application
+        run: python -m compileall -q app
+      - name: Run tests
+        run: pytest -q
+      - name: Run HTTP contract evaluation
+        shell: bash
+        env:
+          TRAVELOPS_DB_PATH: ${{ runner.temp }}/travelops_mock_crm.db
+        run: |
+          set -euo pipefail
+
+          python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > uvicorn.log 2>&1 &
+          server_pid=$!
+
+          cleanup() {
+            local exit_code=$?
+            trap - EXIT
+            if [ "$exit_code" -ne 0 ] && [ -f uvicorn.log ]; then
+              echo "FastAPI output after failure:"
+              cat uvicorn.log
+            fi
+            if kill -0 "$server_pid" 2>/dev/null; then
+              kill "$server_pid" 2>/dev/null || true
+            fi
+            wait "$server_pid" 2>/dev/null || true
+            exit "$exit_code"
+          }
+          trap cleanup EXIT
+
+          healthy=false
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:8000/health > /dev/null; then
+              healthy=true
+              break
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              echo "FastAPI exited before /health became ready."
+              exit 1
+            fi
+            sleep 1
+          done
+
+          if [ "$healthy" != true ]; then
+            echo "FastAPI did not become ready at /health within 30 seconds."
+            exit 1
+          fi
+
+          python scripts/run_eval.py --base-url http://127.0.0.1:8000 --suite evals/v1.jsonl
