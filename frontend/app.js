@@ -1,10 +1,11 @@
 (() => {
   "use strict";
 
-  // The application deliberately uses same-origin, versioned API paths so the
-  // demo can run locally with Docker and behind a reverse proxy without keys.
+  // The browser only calls same-origin APIs. Any provider credential stays on
+  // the server; the optional v2 route never receives a key from this UI.
   const API = {
     plan: "/api/v1/plans",
+    modelPlan: "/api/v2/plans",
     tickets: "/api/v1/tickets",
   };
 
@@ -17,6 +18,7 @@
   const planOutput = document.querySelector("#plan-output");
   const emptyState = document.querySelector("#empty-state");
   const resultState = document.querySelector("#result-state");
+  const useModelEnhancement = document.querySelector("#use-model-enhancement");
 
   let lastPlanId = null;
 
@@ -160,6 +162,75 @@
     }).join("") || '<p class="empty-inline">本次方案未返回可展示的来源。</p>';
   }
 
+  function modelFallbackMessage(code) {
+    const messages = {
+      llm_disabled: "模型增强未启用，已返回确定性方案。",
+      missing_api_key: "服务端未配置模型密钥，已返回确定性方案。",
+      missing_model: "服务端未配置模型标识，已返回确定性方案。",
+      invalid_base_url: "模型服务配置无效，已返回确定性方案。",
+      knowledge_empty: "未找到同城受控资料，未调用模型。",
+      validation_not_passed: "预算或日程校验未通过，未调用模型。",
+      provider_auth_failed: "模型服务鉴权失败，已保留确定性方案。",
+      provider_payment_required: "模型服务额度不可用，已保留确定性方案。",
+      provider_rate_limited: "模型服务暂时限流，已保留确定性方案。",
+      provider_timeout: "模型服务超时，已保留确定性方案。",
+      provider_network_error: "模型服务网络不可用，已保留确定性方案。",
+      provider_unavailable: "模型服务暂不可用，已保留确定性方案。",
+      invalid_provider_json: "模型输出格式未通过校验，已保留确定性方案。",
+      truncated_provider_response: "模型输出不完整，已保留确定性方案。",
+      untrusted_provider_output: "模型输出未通过来源校验，已保留确定性方案。",
+    };
+    return messages[code] || "未采用模型说明，已保留确定性方案。";
+  }
+
+  function renderModelNarrative(plan) {
+    const section = document.querySelector("#model-narrative-section");
+    const generation = plan.generation;
+    if (!generation || typeof generation !== "object") {
+      section.hidden = true;
+      return;
+    }
+
+    section.hidden = false;
+    const badge = document.querySelector("#model-generation-badge");
+    const metadata = document.querySelector("#model-generation");
+    const content = document.querySelector("#model-narrative");
+    const enhanced = generation.mode === "llm_augmented";
+    badge.textContent = enhanced ? "已通过来源校验" : "确定性降级";
+    badge.className = `count-pill ${enhanced ? "model-ready" : "model-fallback"}`;
+
+    const metadataItems = [
+      ["模式", enhanced ? "模型增强" : "确定性结果"],
+      ["模型", generation.model || "未调用"],
+      ["提示词", generation.prompt_version || "—"],
+      ["调用", `${Number(generation.attempts) || 0} 次`],
+    ];
+    if (Number.isFinite(Number(generation.llm_latency_ms))) {
+      metadataItems.push(["模型耗时", `${Math.round(Number(generation.llm_latency_ms))} ms`]);
+    }
+    if (generation.usage?.total_tokens != null) {
+      metadataItems.push(["Token", String(generation.usage.total_tokens)]);
+    }
+    metadata.innerHTML = metadataItems.map(([label, value]) => `<span><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></span>`).join("");
+
+    const narrative = plan.narrative;
+    if (!enhanced || !narrative || typeof narrative !== "object") {
+      content.innerHTML = `<p class="model-fallback-copy">${escapeHtml(modelFallbackMessage(generation.fallback_code))}</p>`;
+      return;
+    }
+
+    const notes = Array.isArray(narrative.day_notes) ? narrative.day_notes : [];
+    const caveats = Array.isArray(narrative.caveats) ? narrative.caveats : [];
+    content.innerHTML = `
+      <p class="model-overview">${escapeHtml(narrative.overview || "已生成受控模型说明。")}</p>
+      <div class="model-notes">${notes.map((note) => `<article class="model-note">
+        <strong>DAY ${escapeHtml(note.day)}</strong>
+        <div><b>${escapeHtml(note.theme || "当日说明")}</b><p>${escapeHtml(note.rationale || "")}</p><small>来源：${escapeHtml((note.source_ids || []).join(", "))}</small></div>
+      </article>`).join("")}</div>
+      ${caveats.length ? `<ul class="model-caveats">${caveats.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
+    `;
+  }
+
   function renderPlan(plan) {
     const summary = plan.request_summary || {};
     const validation = plan.validation || {};
@@ -174,6 +245,7 @@
     renderItinerary(plan.itinerary);
     renderBudget(plan.budget);
     renderTrace(plan.workflow_trace);
+    renderModelNarrative(plan);
     renderCitations(plan.citations);
 
     const ticket = plan.ticket;
@@ -208,15 +280,24 @@
       return;
     }
 
-    setStatus(planStatus, "正在从受控知识库检索并生成结构化方案…");
+    const requestingModel = useModelEnhancement.checked;
+    setStatus(
+      planStatus,
+      requestingModel ? "正在生成并校验受控模型说明…" : "正在从受控知识库检索并生成结构化方案…"
+    );
     setButtonLoading(planButton, true, "正在生成");
     resultState.textContent = "生成中";
     resultState.className = "result-state";
     try {
-      const plan = await postJson(API.plan, payload);
+      const plan = await postJson(requestingModel ? API.modelPlan : API.plan, payload);
       renderPlan(plan);
       const extra = plan.validation?.issues?.length ? " 已标注需要人工复核的事项。" : "";
-      setStatus(planStatus, `方案 ${plan.plan_id || ""} 已生成。${extra}`, "success");
+      const modelExtra = requestingModel
+        ? plan.generation?.mode === "llm_augmented"
+          ? " 模型说明已通过来源校验。"
+          : " 模型未被采用，已保留确定性结果。"
+        : "";
+      setStatus(planStatus, `方案 ${plan.plan_id || ""} 已生成。${extra}${modelExtra}`, "success");
     } catch (error) {
       const message = error instanceof Error ? error.message : "暂时无法生成方案，请检查服务是否已启动。";
       setStatus(planStatus, `生成失败：${message}`, "error");

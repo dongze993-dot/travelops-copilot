@@ -127,6 +127,17 @@
               ></textarea>
             </label>
 
+            <div class="model-option">
+              <label class="toggle-label">
+                <input id="use-model-enhancement" type="checkbox" />
+                <span class="toggle-track" aria-hidden="true"><span></span></span>
+                <span>
+                  <strong>请求受控模型说明</strong>
+                  <small>仅服务端调用；模型只能解释已校验的合成来源，失败时自动保留确定性方案。</small>
+                </span>
+              </label>
+            </div>
+
             <div class="handoff-option">
               <label class="toggle-label">
                 <input id="create-follow-up-ticket" type="checkbox" />
@@ -201,6 +212,15 @@
                 <ol id="workflow-trace" class="trace-list"></ol>
               </section>
             </div>
+
+            <section id="model-narrative-section" class="result-section model-narrative-section" aria-labelledby="model-narrative-heading" hidden>
+              <div class="result-section-heading">
+                <h3 id="model-narrative-heading">受控模型说明</h3>
+                <span id="model-generation-badge" class="count-pill">等待调用</span>
+              </div>
+              <div id="model-generation" class="model-generation"></div>
+              <div id="model-narrative" class="model-narrative"></div>
+            </section>
 
             <section class="result-section" aria-labelledby="sources-heading">
               <div class="result-section-heading">
