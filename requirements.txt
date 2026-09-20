@@ -1,0 +1,9 @@
+# Runtime dependencies (pinned for a repeatable local demo; Python 3.11+).
+fastapi==0.115.12
+pydantic==2.10.6
+uvicorn[standard]==0.34.0
+langgraph==0.3.34
+
+# Test dependency used by the repository's API checks.
+httpx==0.28.1
+pytest==8.3.5

@@ -1,0 +1,28 @@
+# Python bytecode and local environments
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+
+# Local runtime state and test artefacts
+runtime/
+*.sqlite
+*.sqlite3
+*.db
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Secrets: commit only the documented template below.
+.env
+.env.*
+!.env.example
+
+# Editor and operating-system files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
