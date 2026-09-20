@@ -2,9 +2,9 @@
 
 > 面向旅行运营场景的 AI 应用工程 PoC：把**行程知识检索、约束校验、可解释行程草案与模拟工单流转**串成一个可本地运行、可审计的工作流。
 
-> **项目状态：v0.1 / 演示原型。** 仓库内的景点、价格、营业时间、来源与联系人均为作者原创的虚构/合成示例，不能用于订票、出行、安全或商业决策；项目不连接真实票务、CRM、支付或第三方地图服务。
+> **项目状态：v0.2 / 模型增强路径已实现，等待真实 API 验证。** 仓库内的景点、价格、营业时间、来源与联系人均为作者原创的虚构/合成示例，不能用于订票、出行、安全或商业决策；项目不连接真实票务、CRM、支付或第三方地图服务。
 
-> **关于 AI 的真实边界：** 当前版本使用 LangGraph 搭建可观察的规划工作流，并以本地受控知识检索替代不稳定的自由生成；它没有接入云端大模型或真实预订数据，也不应被描述成“已上线的智能旅行助手”。这种确定性 PoC 便于先验证接口、流程、数据来源和异常分支，后续再安全接入模型适配层。
+> **关于 AI 的真实边界：** `/api/v1/plans` 是可复跑的确定性基线。`/api/v2/plans` 支持可选 DeepSeek 模型调用，但仅用于解释已校验的合成候选；模型不能改写来源、预算、行程和模拟工单。真实 API 的首次评测报告尚未生成，因此本仓库不声称任何模型通过率、延迟、token、成本或真实业务效果。
 
 ## 为什么做这个项目
 
@@ -43,6 +43,7 @@
 | --- | --- | --- |
 | API | Python、FastAPI、Pydantic | 请求校验、OpenAPI、结构化 JSON 契约 |
 | 工作流 | LangGraph `StateGraph` | 显式状态、分支、一次受控修订和执行轨迹 |
+| 模型适配（v2 可选） | DeepSeek Chat Completions HTTP API、JSON 输出、版本化提示词 | 真实 API 对接、结构化输出、token/延迟元数据、失败降级 |
 | 知识层 | 本地 JSON、可追溯的合成来源 ID | 受控检索、来源返回与空覆盖降级 |
 | 集成模拟 | SQLite 模拟 CRM 工单 | 创建/查询接口、字段映射、人工跟进边界 |
 | 交付 | Docker Compose、健康检查、README、API 文档 | 可本地复现的 PoC 交付 |
@@ -59,6 +60,8 @@ python -m venv .venv
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
+
+默认状态下，v2 也会安全地保持确定性，不会发送任何模型请求。要做真实 API 评测时，复制 `.env.example` 为 `.env`，仅在本机填写 `DEEPSEEK_API_KEY` 与控制台显示的模型标识，再将 `TRAVELOPS_LLM_ENABLED=true`。密钥绝不应进入 Git、聊天、截图、前端代码或 CI。详见 [模型评测规范](docs/model-evaluation.md)。
 
 打开 `http://127.0.0.1:8000/docs` 查看交互式 API 文档，或执行：
 
@@ -81,6 +84,7 @@ docker compose up --build
 | `GET` | `/health` | 服务存活检查 |
 | `GET` | `/api/v1/attractions` | 按目的地、兴趣查询合成知识库 |
 | `POST` | `/api/v1/plans` | 生成结构化行程草案及校验结果 |
+| `POST` | `/api/v2/plans` | 在 v1 基线之上返回经过 JSON/来源白名单校验的可选模型说明 |
 | `POST` | `/api/v1/tickets` | 创建模拟人工跟进工单 |
 | `GET` | `/api/v1/tickets/{ticket_id}` | 查询模拟工单 |
 | `GET` | `/api/v1/tickets` | 按状态或合成联系人查询模拟工单 |
@@ -106,6 +110,7 @@ docker compose up --build
 - [架构说明](docs/architecture.md)：组件、数据流和失败边界；
 - [评测说明](evals/README.md)：版本化用例、覆盖维度与运行方式；
 - [指标口径](docs/metrics.md)：如何计算，而不是提前声称结果；
+- [模型评测规范](docs/model-evaluation.md)：真实 API 接入后如何生成可复跑、去敏的模型证据；
 - [演示验收清单](docs/demo-checklist.md)：录屏、面试与交付前自查。
 
 运行评测（服务启动后）：
@@ -121,6 +126,10 @@ python scripts/run_eval.py --base-url http://127.0.0.1:8000 --suite evals/v1.jso
 本仓库保留了一份本地基线报告：[eval-v0.1-final.json](reports/eval-v0.1-final.json)。它于 `2026-09-20` 在 Windows 11 / Python 3.12.14 环境中，以本仓库 `synthetic-v1`（12 条合成知识记录）和 `evals/v1`（42 条 HTTP 契约用例）运行：**42/42 条用例通过**。本次成功请求的本地延迟 P50 为 `5.19 ms`、P95 为 `16.05 ms`，仅用于后续本机回归对比。
 
 这个数字仅表示该次本地运行中，合成数据下的 API 契约、输入边界、工作流字段和模拟工单接口符合用例预期；不表示真实旅游信息准确、真实订单可用、真实 CRM 已集成或存在用户业务效果。报告中保留了 suite 哈希、执行环境、逐条断言和复跑入口。
+
+### v2 当前离线证据（不是模型效果）
+
+[`model-eval-v2-disabled-local.json`](reports/model-eval-v2-disabled-local.json) 记录了 v2 在模型明确关闭时的 30/30 条合成场景回归：18 条未来可调用模型的正常请求、6 条低预算降级、6 条未知城市降级均符合接口预期。该次 `llm_augmented=0`，因此它只能证明模型关闭/降级路径与评测器可复跑；它**不能**用于宣传 DeepSeek 模型效果。真实模型指标必须通过 `scripts/run_model_eval.py --require-llm` 生成新报告。
 
 ## 推荐的 GitHub 迭代节奏
 
@@ -143,6 +152,8 @@ python scripts/run_eval.py --base-url http://127.0.0.1:8000 --suite evals/v1.jso
 > - 使用 Python / FastAPI 实现面向旅行运营的结构化行程规划 API，覆盖受控知识检索、预算约束校验与可选模拟工单创建。  
 > - 设计 JSON 契约与工作流追踪字段，将“查询知识—生成草案—验证约束—人工跟进”拆分为可审查步骤；知识库为原创合成数据，未接入真实业务系统。  
 > - 建立 `evals/v1` 版本化评测集（42 条 HTTP 契约用例），在 Windows 11 / Python 3.12.14 本地环境生成原始 JSON 报告并通过 42/42 条；该指标仅覆盖合成数据和 API 契约，不代表真实旅游业务效果。
+
+当且仅当完成 v2 的真实 `--require-llm` 运行并保留报告后，才可追加“接入 DeepSeek、模型名、评测集版本、实际通过率、来源白名单率、P50/P95、token 口径”等**报告中的真实数字**。在此之前，不应写成“模型已稳定上线”或杜撰指标。
 
 面试时建议主动说清楚：哪些是你亲自实现的，哪些是借助文档或 AI 编程工具完成的，哪些数据和接口是模拟的。能解释、能复跑、能根据追问修改，远比夸大经历更有说服力。
 

@@ -2,8 +2,11 @@
 
 ## Scope
 
-TravelOps Copilot is a local, deterministic portfolio demo. It does not need
-an LLM provider key, payment credential, identity document, or production CRM
+TravelOps Copilot is a local portfolio demo with a deterministic v1 baseline
+and an optional v2 DeepSeek adapter. A local development key is needed only
+when a developer explicitly enables v2 live-model testing; it must never enter
+Git, CI logs, browser code, screenshots, issue text, or chat. The project does
+not need payment credentials, identity documents, or a production CRM
 connection. Do not add real customer data, secrets, or booking credentials to
 this repository.
 
@@ -18,6 +21,12 @@ then arrange a private follow-up.
 
 - `.env`, SQLite runtime files, and common virtual-environment folders are
   ignored by Git. Commit only `.env.example`.
+- v2 uses a server-side environment variable and returns only safe model
+  metadata; it never returns an API key, authorization header, raw provider
+  error body, or complete provider prompt.
+- Do not place API keys in GitHub Actions secrets for this demo's default CI.
+  CI exercises a fake provider only; any paid live-model smoke test should be
+  manually triggered in a controlled local environment with synthetic data.
 - The bundled knowledge data is explicitly marked as example data. Replace it
   only with public, licensed, or properly de-identified material.
 - This proof of concept is not a booking, medical, payment, or identity system.

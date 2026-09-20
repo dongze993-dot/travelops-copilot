@@ -1,4 +1,4 @@
-# HTTP API 契约（v1）
+# HTTP API 契约（v1 稳定基线 / v2 模型增强）
 
 本文件描述 TravelOps Copilot 演示服务的稳定意图。服务启动后的 OpenAPI 页面（通常为 `/docs`）是运行时字段和示例的最终依据。所有示例均使用**虚构/合成**内容。
 
@@ -173,7 +173,63 @@
 - `citations`：`source_id`、`title`、`uri`、`excerpt` 与 `relevance`；
 - `validation`：`passed`、`within_budget`、`coverage_ok`、`issues` 与最多一次的 `revision_count`；
 - `workflow_trace`：由 `parse`、`retrieve`、`plan`、`validate`、可选 `revise_once`、`finalize` 组成的结构化步骤，不含密钥/敏感内容；
+
 - `ticket`：只有明确要求人工跟进时才可能有值，且仅代表模拟工单。
+
+## `POST /api/v2/plans`
+
+v2 使用与 `POST /api/v1/plans` 相同的请求体和确定性规划基础，再额外返回模型增强元数据。它用于演示“真实模型调用也必须被来源、结构和降级策略约束”的工程方式；它仍然只处理本仓库的合成资料，不是线上旅行助手。
+
+模型调用的前提是：本地/部署环境显式开启、密钥和模型名有效、当前请求有同城来源、且确定性预算与日程校验通过。否则 HTTP 仍返回 `200` 的确定性结果，并在 `generation` 中解释为什么没有采用模型文本。
+
+### v2 新增字段
+
+```json
+{
+  "generation": {
+    "mode": "llm_augmented",
+    "provider": "deepseek",
+    "model": "运行时配置或供应商返回的模型标识",
+    "prompt_version": "travelops-v2.0.0",
+    "fallback_code": null,
+    "attempts": 1,
+    "llm_latency_ms": 842.1,
+    "usage": {
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "total_tokens": 0
+    }
+  },
+  "narrative": {
+    "overview": "基于受控合成资料的简短说明。",
+    "day_notes": [
+      {
+        "day": 1,
+        "theme": "模型生成的说明性主题",
+        "rationale": "只根据已给出的合成候选作解释。",
+        "source_ids": ["syn-hz-001"]
+      }
+    ],
+    "caveats": ["示例资料不代表真实库存或营业信息。"]
+  }
+}
+```
+
+`generation` 只包含可用于评测的非敏感元数据，绝不包含 API Key、Authorization 请求头、原始供应商错误或完整提示词。`usage` 仅在供应商实际返回 token 信息时出现。`model` 和耗时是**某次运行的观测值**，不是固定性能承诺。
+
+| 字段 | 语义 |
+| --- | --- |
+| `generation.mode` | `llm_augmented` 表示模型输出通过校验；`deterministic` 表示明确关闭模型；`deterministic_fallback` 表示配置、数据、网络或输出校验原因使系统保留确定性结果。 |
+| `generation.fallback_code` | 安全的机器可读降级原因，例如 `knowledge_empty`、`validation_not_passed`、`provider_rate_limited` 或 `untrusted_provider_output`；不是供应商原始错误。 |
+| `generation.attempts` | 本次实际供应商请求次数，最多 2 次；未调用为 0。 |
+| `narrative` | 仅在 `llm_augmented` 时返回。它不替换 `itinerary`、`budget`、`citations` 或 `validation`。 |
+
+### v2 安全约束
+
+- 模型只会看到经过范围校验的目的地、天数、人数、预算、兴趣、确定性草案及合成候选；`notes`、`contact_name` 和工单内容不会发送给供应商。
+- 返回文本必须是 JSON，且每一天恰好一次、所有 `source_ids` 都属于本次 `citations`，否则丢弃。
+- 空城市、预算/覆盖校验失败、密钥缺失、超时、限流、无效 JSON 或来源幻觉都会回退；不会把失败伪装成成功。
+- CI 只运行离线 fake-provider 测试，不使用或保存任何真实密钥。真实模型评测须手动运行，并保留去敏后的原始报告。
 
 ## `POST /api/v1/tickets`
 
