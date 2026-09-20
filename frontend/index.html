@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="TravelOps Copilot：一个可追溯、可交接的旅行运营方案演示。"
+    />
+    <title>TravelOps Copilot · 行程运营工作台</title>
+    <link rel="stylesheet" href="/frontend/styles.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="TravelOps Copilot 首页">
+        <span class="brand-mark" aria-hidden="true">✦</span>
+        <span>TravelOps <em>Copilot</em></span>
+      </a>
+      <div class="header-status">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span>本地演示环境</span>
+        <span class="header-divider" aria-hidden="true"></span>
+        <span>方案可追溯</span>
+      </div>
+    </header>
+
+    <main id="top" class="page-shell">
+      <section class="intro" aria-labelledby="page-title">
+        <p class="eyebrow">AI TRAVEL OPERATIONS · DEMO</p>
+        <h1 id="page-title">把旅行需求变成<br /><span>可执行的运营方案。</span></h1>
+        <p class="intro-copy">
+          填写一次需求，生成按天组织的行程、预算假设与可追溯来源；需要人工处理时，一键交接为服务工单。
+        </p>
+        <div class="trust-row" aria-label="产品能力">
+          <span>受控知识检索</span>
+          <span>结构化规划</span>
+          <span>预算校验</span>
+          <span>工单协同</span>
+        </div>
+      </section>
+
+      <section class="workspace" aria-label="行程生成工作台">
+        <aside class="request-panel panel">
+          <div class="panel-heading">
+            <div>
+              <p class="section-kicker">01 / INTAKE</p>
+              <h2>旅行需求</h2>
+            </div>
+            <span class="panel-index" aria-hidden="true">⌘</span>
+          </div>
+
+          <form id="plan-form" novalidate>
+            <div class="form-grid">
+              <label class="field field-wide">
+                <span>目的地 <b>*</b></span>
+                <input
+                  id="destination"
+                  name="destination"
+                  type="text"
+                  placeholder="例如：杭州"
+                  autocomplete="address-level2"
+                  required
+                  maxlength="80"
+                />
+              </label>
+
+              <label class="field">
+                <span>出发日期</span>
+                <input id="start-date" name="start_date" type="date" />
+              </label>
+
+              <label class="field">
+                <span>游玩天数 <b>*</b></span>
+                <input id="days" name="days" type="number" min="1" max="14" step="1" value="3" required />
+              </label>
+
+              <label class="field">
+                <span>出行人数 <b>*</b></span>
+                <input id="travelers" name="travelers" type="number" min="1" max="10" value="2" required />
+              </label>
+
+              <label class="field">
+                <span>总预算（元）<b>*</b></span>
+                <input
+                  id="total-budget"
+                  name="total_budget_cny"
+                  type="number"
+                  min="0.01"
+                  max="100000"
+                  step="0.01"
+                  value="5000"
+                  required
+                />
+              </label>
+            </div>
+
+            <fieldset class="choice-group">
+              <legend>旅行偏好</legend>
+              <div class="chip-list" id="interest-list">
+                <label class="choice-chip"><input type="checkbox" name="interests" value="自然" /><span>自然风光</span></label>
+                <label class="choice-chip"><input type="checkbox" name="interests" value="文化" /><span>人文历史</span></label>
+                <label class="choice-chip"><input type="checkbox" name="interests" value="美食" /><span>本地美食</span></label>
+                <label class="choice-chip"><input type="checkbox" name="interests" value="亲子" /><span>亲子轻松</span></label>
+              </div>
+            </fieldset>
+
+            <fieldset class="choice-group">
+              <legend>节奏</legend>
+              <div class="segmented-control">
+                <label><input type="radio" name="travel_style" value="budget" /><span>精打细算</span></label>
+                <label><input type="radio" name="travel_style" value="balanced" checked /><span>均衡体验</span></label>
+                <label><input type="radio" name="travel_style" value="comfort" /><span>舒适从容</span></label>
+              </div>
+            </fieldset>
+
+            <label class="field notes-field">
+              <span>补充说明 <i>可选</i></span>
+              <textarea
+                id="notes"
+                name="notes"
+                rows="3"
+                maxlength="500"
+                placeholder="例如：想减少换酒店、避开排队、安排一晚特色餐厅。"
+              ></textarea>
+            </label>
+
+            <div class="handoff-option">
+              <label class="toggle-label">
+                <input id="create-follow-up-ticket" type="checkbox" />
+                <span class="toggle-track" aria-hidden="true"><span></span></span>
+                <span>
+                  <strong>生成后创建跟进工单</strong>
+                  <small>把本次需求带入服务协同队列</small>
+                </span>
+              </label>
+            </div>
+
+            <button id="plan-submit" class="primary-button" type="submit">
+              <span>生成运营方案</span>
+              <span class="button-arrow" aria-hidden="true">↗</span>
+            </button>
+            <p id="plan-status" class="form-status" role="status" aria-live="polite"></p>
+          </form>
+        </aside>
+
+        <section class="result-panel panel" aria-labelledby="result-heading">
+          <div class="panel-heading result-heading">
+            <div>
+              <p class="section-kicker">02 / PLAN OUTPUT</p>
+              <h2 id="result-heading">运营方案</h2>
+            </div>
+            <div id="result-state" class="result-state">等待需求</div>
+          </div>
+
+          <div id="empty-state" class="empty-state">
+            <div class="empty-orbit" aria-hidden="true">
+              <span class="orbit-core">✦</span>
+              <span class="orbit-dot orbit-a"></span>
+              <span class="orbit-dot orbit-b"></span>
+              <span class="orbit-dot orbit-c"></span>
+            </div>
+            <h3>方案将从这里开始</h3>
+            <p>我们会展示每日行程、预算拆分、资料来源，以及工作流校验轨迹。</p>
+          </div>
+
+          <div id="plan-output" class="plan-output" hidden>
+            <div class="plan-summary">
+              <div>
+                <p id="summary-label" class="summary-label">旅行方案</p>
+                <h3 id="summary-title">目的地行程</h3>
+              </div>
+              <div id="validation-badge" class="validation-badge">校验中</div>
+            </div>
+
+            <div id="metric-row" class="metric-row" aria-label="方案摘要"></div>
+
+            <section class="result-section itinerary-section" aria-labelledby="itinerary-heading">
+              <div class="result-section-heading">
+                <h3 id="itinerary-heading">每日行程</h3>
+                <span id="itinerary-count" class="count-pill"></span>
+              </div>
+              <div id="itinerary" class="itinerary"></div>
+            </section>
+
+            <div class="result-split">
+              <section class="result-section" aria-labelledby="budget-heading">
+                <div class="result-section-heading">
+                  <h3 id="budget-heading">预算假设</h3>
+                  <span id="budget-currency" class="muted-label">CNY</span>
+                </div>
+                <div id="budget" class="budget-list"></div>
+              </section>
+
+              <section class="result-section" aria-labelledby="trace-heading">
+                <div class="result-section-heading">
+                  <h3 id="trace-heading">工作流轨迹</h3>
+                </div>
+                <ol id="workflow-trace" class="trace-list"></ol>
+              </section>
+            </div>
+
+            <section class="result-section" aria-labelledby="sources-heading">
+              <div class="result-section-heading">
+                <h3 id="sources-heading">可追溯来源</h3>
+                <span id="citation-count" class="count-pill"></span>
+              </div>
+              <div id="citations" class="citation-list"></div>
+            </section>
+
+            <div id="plan-ticket" class="plan-ticket" hidden></div>
+          </div>
+        </section>
+      </section>
+
+      <section class="handoff-card" aria-labelledby="handoff-heading">
+        <div class="handoff-intro">
+          <p class="section-kicker">03 / HUMAN HANDOFF</p>
+          <h2 id="handoff-heading">需要人工确认？<br />交给服务队列。</h2>
+          <p>工单用于演示业务交接，不收集身份证、护照、支付信息等敏感个人数据。</p>
+        </div>
+        <form id="ticket-form" class="ticket-form" novalidate>
+          <label class="field">
+            <span>工单标题 <b>*</b></span>
+            <input id="ticket-title" type="text" minlength="3" maxlength="160" placeholder="例如：确认杭州三日游的酒店区域" required />
+          </label>
+          <label class="field">
+            <span>优先级</span>
+            <select id="ticket-priority">
+              <option value="low">低：资料补充</option>
+              <option value="normal" selected>普通：人工确认</option>
+              <option value="high">高：临近出发</option>
+            </select>
+          </label>
+          <label class="field field-wide">
+            <span>问题说明 <b>*</b></span>
+            <textarea id="ticket-description" rows="3" minlength="3" maxlength="2000" placeholder="请描述需要人工协助的事项。" required></textarea>
+          </label>
+          <div class="ticket-action field-wide">
+            <button id="ticket-submit" class="secondary-button" type="submit">创建演示工单 <span aria-hidden="true">→</span></button>
+            <p id="ticket-status" class="form-status" role="status" aria-live="polite"></p>
+          </div>
+        </form>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>TravelOps Copilot · Portfolio Demo</span>
+      <span>仅使用公开、模拟或脱敏数据</span>
+    </footer>
+
+    <script src="/frontend/app.js" defer></script>
+  </body>
+</html>
