@@ -18,13 +18,17 @@ from typing_extensions import TypedDict
 
 from .crm import SQLiteTicketStore
 from .knowledge import LocalKnowledgeBase
+from .llm import DeepSeekNarrativeGenerator
 from .schemas import (
     Attraction,
     BudgetBreakdown,
     BudgetLineItem,
     Citation,
     DayItinerary,
+    GenerationMetadata,
     ItineraryItem,
+    LLMTravelNarrative,
+    ModelAssistedPlanResponse,
     PlanRequestSummary,
     TicketCreateRequest,
     TicketRecord,
@@ -48,6 +52,8 @@ class PlanningState(TypedDict, total=False):
     trace: list[dict[str, Any]]
     plan_id: str
     ticket: dict[str, Any] | None
+    generation: dict[str, Any]
+    narrative: dict[str, Any] | None
 
 
 _STYLE_COSTS: dict[str, dict[str, int]] = {
@@ -159,7 +165,15 @@ class TravelPlanningWorkflow:
     @staticmethod
     def _trace(
         state: PlanningState,
-        step: Literal["parse", "retrieve", "plan", "validate", "revise_once", "finalize"],
+        step: Literal[
+            "parse",
+            "retrieve",
+            "plan",
+            "validate",
+            "revise_once",
+            "augment_with_llm",
+            "finalize",
+        ],
         detail: str,
         *,
         warning: bool = False,
@@ -477,4 +491,114 @@ class TravelPlanningWorkflow:
             validation=ValidationResult.model_validate(result["validation"]),
             workflow_trace=[WorkflowTraceEntry.model_validate(item) for item in result["trace"]],
             ticket=TicketRecord.model_validate(result["ticket"]) if result.get("ticket") else None,
+        )
+
+
+class ModelEnhancedTravelPlanningWorkflow(TravelPlanningWorkflow):
+    """A v2 path that adds a guarded model explanation after deterministic checks.
+
+    The v1 graph is intentionally left unchanged so its existing contract suite
+    remains a stable baseline. This graph reuses the same deterministic search,
+    budget, validation, and mock-CRM steps, then optionally asks a provider to
+    explain the already-validated candidate.
+    """
+
+    def __init__(self, tools: TravelOpsTools, generator: DeepSeekNarrativeGenerator) -> None:
+        self.generator = generator
+        super().__init__(tools)
+
+    @staticmethod
+    def _route_after_validation_v2(
+        state: PlanningState,
+    ) -> Literal["revise_once", "augment_with_llm"]:
+        validation = ValidationResult.model_validate(state["validation"])
+        if not validation.passed and state.get("revision_count", 0) < 1:
+            return "revise_once"
+        return "augment_with_llm"
+
+    def _augment_with_llm(self, state: PlanningState) -> dict[str, Any]:
+        validation = ValidationResult.model_validate(state["validation"])
+        records = [Attraction.model_validate(record) for record in state.get("retrieved", [])]
+        itinerary = [DayItinerary.model_validate(day) for day in state["itinerary"]]
+
+        if not records:
+            result = self.generator.skip("knowledge_empty")
+        elif not validation.passed:
+            result = self.generator.skip("validation_not_passed")
+        else:
+            result = self.generator.generate(
+                parsed_request=state["parsed"],
+                records=records,
+                itinerary=itinerary,
+            )
+
+        if result.narrative:
+            detail = "已生成模型说明，并完成 JSON 结构与来源白名单校验。"
+            warning = False
+        else:
+            detail = (
+                "未采用模型说明，保留可复现的确定性结果"
+                f"（{result.metadata.fallback_code or 'deterministic'}）。"
+            )
+            warning = result.metadata.mode == "deterministic_fallback"
+        return {
+            "narrative": result.narrative.model_dump(mode="json") if result.narrative else None,
+            "generation": result.metadata.model_dump(mode="json"),
+            "trace": self._trace(state, "augment_with_llm", detail, warning=warning),
+        }
+
+    def _build_graph(self) -> Any:
+        graph = StateGraph(PlanningState)
+        graph.add_node("parse_request", self._parse_request)
+        graph.add_node("retrieve", self._retrieve)
+        graph.add_node("plan", self._plan)
+        graph.add_node("validate", self._validate)
+        graph.add_node("revise_once", self._revise_once)
+        graph.add_node("augment_with_llm", self._augment_with_llm)
+        graph.add_node("finalize", self._finalize)
+        graph.add_edge(START, "parse_request")
+        graph.add_edge("parse_request", "retrieve")
+        graph.add_edge("retrieve", "plan")
+        graph.add_edge("plan", "validate")
+        graph.add_conditional_edges(
+            "validate",
+            self._route_after_validation_v2,
+            {"revise_once": "revise_once", "augment_with_llm": "augment_with_llm"},
+        )
+        graph.add_edge("revise_once", "augment_with_llm")
+        graph.add_edge("augment_with_llm", "finalize")
+        graph.add_edge("finalize", END)
+        return graph.compile()
+
+    def run(self, request: TravelPlanningRequest) -> ModelAssistedPlanResponse:
+        """Run the v2 graph and expose only validated model metadata/output."""
+
+        initial: PlanningState = {
+            "request": self._normalise_request(request),
+            "revision_count": 0,
+            "trace": [],
+        }
+        result = self.graph.invoke(initial)
+        parsed = result["parsed"]
+        return ModelAssistedPlanResponse(
+            plan_id=result["plan_id"],
+            request_summary=PlanRequestSummary(
+                destination=parsed["destination"],
+                days=parsed["days"],
+                travelers=parsed["travelers"],
+                interests=parsed["interests"],
+                travel_style=parsed["travel_style"],
+            ),
+            itinerary=[DayItinerary.model_validate(item) for item in result["itinerary"]],
+            budget=BudgetBreakdown.model_validate(result["budget"]),
+            citations=[Citation.model_validate(item) for item in result["citations"]],
+            validation=ValidationResult.model_validate(result["validation"]),
+            workflow_trace=[WorkflowTraceEntry.model_validate(item) for item in result["trace"]],
+            ticket=TicketRecord.model_validate(result["ticket"]) if result.get("ticket") else None,
+            generation=GenerationMetadata.model_validate(result["generation"]),
+            narrative=(
+                LLMTravelNarrative.model_validate(result["narrative"])
+                if result.get("narrative")
+                else None
+            ),
         )

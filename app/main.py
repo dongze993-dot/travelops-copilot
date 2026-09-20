@@ -6,22 +6,26 @@ import os
 from pathlib import Path
 from typing import Annotated
 
+import httpx
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from .config import LLMSettings
 from .crm import SQLiteTicketStore, TicketNotFoundError
 from .knowledge import LocalKnowledgeBase
+from .llm import DeepSeekNarrativeGenerator
 from .schemas import (
     AttractionSearchResponse,
     HealthResponse,
+    ModelAssistedPlanResponse,
     TicketCreateRequest,
     TicketRecord,
     TicketStatus,
     TravelPlanResponse,
     TravelPlanningRequest,
 )
-from .workflow import TravelOpsTools, TravelPlanningWorkflow
+from .workflow import ModelEnhancedTravelPlanningWorkflow, TravelOpsTools, TravelPlanningWorkflow
 
 
 def _default_db_path() -> Path:
@@ -35,24 +39,35 @@ def create_app(
     *,
     db_path: str | Path | None = None,
     knowledge_path: str | Path | None = None,
+    llm_settings: LLMSettings | None = None,
+    llm_transport: httpx.BaseTransport | None = None,
 ) -> FastAPI:
     """Create an app instance; injectable paths keep integration tests isolated."""
 
     knowledge = LocalKnowledgeBase(knowledge_path)
     tickets = SQLiteTicketStore(db_path or _default_db_path())
-    workflow = TravelPlanningWorkflow(TravelOpsTools(knowledge, tickets))
+    tools = TravelOpsTools(knowledge, tickets)
+    workflow = TravelPlanningWorkflow(tools)
+    settings = llm_settings or LLMSettings.from_environment()
+    model_workflow = ModelEnhancedTravelPlanningWorkflow(
+        tools,
+        DeepSeekNarrativeGenerator(settings, transport=llm_transport),
+    )
 
     app = FastAPI(
         title="TravelOps Copilot API",
         version="0.1.0",
         description=(
-            "A deterministic, local-data TravelOps proof of concept. "
-            "It is not a booking system and does not provide live travel advice."
+            "A controlled-data TravelOps proof of concept. v1 is deterministic; "
+            "v2 can add a validated DeepSeek explanation without changing the "
+            "deterministic budget, source, or mock-CRM controls. It is not a booking system "
+            "and does not provide live travel advice."
         ),
     )
     app.state.knowledge = knowledge
     app.state.tickets = tickets
     app.state.workflow = workflow
+    app.state.model_workflow = model_workflow
 
     # `check_dir=False` lets API-only tests instantiate the app before the
     # separately owned frontend files are present.
@@ -87,6 +102,16 @@ def create_app(
     @app.post("/api/plan", response_model=TravelPlanResponse, include_in_schema=False)
     def create_plan(request: TravelPlanningRequest) -> TravelPlanResponse:
         return workflow.run(request)
+
+    @app.post(
+        "/api/v2/plans",
+        response_model=ModelAssistedPlanResponse,
+        tags=["planning v2"],
+    )
+    def create_model_assisted_plan(request: TravelPlanningRequest) -> ModelAssistedPlanResponse:
+        """Return a v1-compatible plan plus a guarded optional model explanation."""
+
+        return model_workflow.run(request)
 
     @app.post("/api/v1/tickets", response_model=TicketRecord, status_code=201, tags=["mock crm"])
     @app.post("/api/tickets", response_model=TicketRecord, status_code=201, include_in_schema=False)

@@ -124,6 +124,7 @@ class WorkflowTraceEntry(APIModel):
         "plan",
         "validate",
         "revise_once",
+        "augment_with_llm",
         "finalize",
     ]
     status: Literal["completed", "warning"]
@@ -164,6 +165,51 @@ class TravelPlanResponse(APIModel):
     validation: ValidationResult
     workflow_trace: list[WorkflowTraceEntry]
     ticket: TicketRecord | None = None
+
+
+class TokenUsage(APIModel):
+    """Provider-reported token counts, retained for reproducible model evaluation."""
+
+    prompt_tokens: int | None = Field(default=None, ge=0)
+    completion_tokens: int | None = Field(default=None, ge=0)
+    total_tokens: int | None = Field(default=None, ge=0)
+
+
+class GenerationMetadata(APIModel):
+    """Safe, non-secret metadata about the optional model-enhancement step."""
+
+    mode: Literal["llm_augmented", "deterministic", "deterministic_fallback"]
+    provider: str = Field(max_length=40)
+    model: str | None = Field(default=None, max_length=120)
+    prompt_version: str = Field(max_length=80)
+    fallback_code: str | None = Field(default=None, max_length=80)
+    attempts: int = Field(ge=0, le=2)
+    llm_latency_ms: float | None = Field(default=None, ge=0)
+    usage: TokenUsage | None = None
+
+
+class LLMDayNote(APIModel):
+    """A grounded, model-written explanation for one deterministic itinerary day."""
+
+    day: int = Field(ge=1, le=14)
+    theme: str = Field(min_length=1, max_length=100)
+    rationale: str = Field(min_length=1, max_length=400)
+    source_ids: list[str] = Field(min_length=1, max_length=8)
+
+
+class LLMTravelNarrative(APIModel):
+    """Model output that has passed JSON and source-allowlist validation."""
+
+    overview: str = Field(min_length=1, max_length=500)
+    day_notes: list[LLMDayNote] = Field(min_length=1, max_length=14)
+    caveats: list[str] = Field(default_factory=list, max_length=4)
+
+
+class ModelAssistedPlanResponse(TravelPlanResponse):
+    """The v2 response keeps the v1 plan and adds an optional LLM explanation."""
+
+    generation: GenerationMetadata
+    narrative: LLMTravelNarrative | None = None
 
 
 class HealthResponse(APIModel):

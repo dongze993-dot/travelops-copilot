@@ -6,8 +6,18 @@ services:
     ports:
       - "8000:8000"
     environment:
-      # This demo uses local deterministic data only; no model-provider key is required.
       TRAVELOPS_DB_PATH: /app/runtime/travelops_mock_crm.db
+      # Docker Compose reads a local .env automatically. Empty/missing values
+      # keep v2 deterministic, and the key never belongs in this YAML file.
+      DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY:-}"
+      TRAVELOPS_LLM_ENABLED: "${TRAVELOPS_LLM_ENABLED:-false}"
+      TRAVELOPS_LLM_PROVIDER: "${TRAVELOPS_LLM_PROVIDER:-deepseek}"
+      TRAVELOPS_LLM_BASE_URL: "${TRAVELOPS_LLM_BASE_URL:-https://api.deepseek.com}"
+      TRAVELOPS_LLM_MODEL: "${TRAVELOPS_LLM_MODEL:-deepseek-chat}"
+      TRAVELOPS_LLM_TIMEOUT_SECONDS: "${TRAVELOPS_LLM_TIMEOUT_SECONDS:-20}"
+      TRAVELOPS_LLM_MAX_RETRIES: "${TRAVELOPS_LLM_MAX_RETRIES:-1}"
+      TRAVELOPS_LLM_MAX_TOKENS: "${TRAVELOPS_LLM_MAX_TOKENS:-800}"
+      TRAVELOPS_LLM_TEMPERATURE: "${TRAVELOPS_LLM_TEMPERATURE:-0}"
     volumes:
       - travelops_runtime:/app/runtime
     healthcheck:
