@@ -30,7 +30,7 @@ jobs:
       - name: Compile application
         run: python -m compileall -q app
       - name: Run tests
-        run: pytest -q
+        run: PYTHONPATH=. pytest -q
       - name: Run HTTP contract evaluation
         shell: bash
         env:
