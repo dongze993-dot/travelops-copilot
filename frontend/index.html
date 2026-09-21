@@ -21,7 +21,7 @@
       </a>
       <div class="header-status">
         <span class="status-dot" aria-hidden="true"></span>
-        <span>本地演示环境</span>
+        <span id="environment-label">受控演示环境</span>
         <span class="header-divider" aria-hidden="true"></span>
         <span>方案可追溯</span>
       </div>
@@ -32,14 +32,17 @@
         <p class="eyebrow">AI TRAVEL OPERATIONS · DEMO</p>
         <h1 id="page-title">把旅行需求变成<br /><span>可执行的运营方案。</span></h1>
         <p class="intro-copy">
-          填写一次需求，生成按天组织的行程、预算假设与可追溯来源；需要人工处理时，一键交接为服务工单。
+          填写一次需求，生成按天组织的行程、预算假设与可追溯来源；本地运行时，可选择将需要人工处理的事项交接为模拟工单。
         </p>
         <div class="trust-row" aria-label="产品能力">
           <span>受控知识检索</span>
           <span>结构化规划</span>
           <span>预算校验</span>
-          <span>工单协同</span>
+          <span id="handoff-capability">工单协同</span>
         </div>
+        <p id="public-demo-notice" class="public-demo-notice" hidden>
+          <strong>公开演示模式：</strong>工单读写已关闭。请勿提交姓名、联系方式、订单或其他个人信息。
+        </p>
       </section>
 
       <section class="workspace" aria-label="行程生成工作台">
@@ -138,7 +141,7 @@
               </label>
             </div>
 
-            <div class="handoff-option">
+            <div id="follow-up-ticket-option" class="handoff-option">
               <label class="toggle-label">
                 <input id="create-follow-up-ticket" type="checkbox" />
                 <span class="toggle-track" aria-hidden="true"><span></span></span>
@@ -235,7 +238,7 @@
         </section>
       </section>
 
-      <section class="handoff-card" aria-labelledby="handoff-heading">
+      <section id="handoff-card" class="handoff-card" aria-labelledby="handoff-heading">
         <div class="handoff-intro">
           <p class="section-kicker">03 / HUMAN HANDOFF</p>
           <h2 id="handoff-heading">需要人工确认？<br />交给服务队列。</h2>
@@ -267,7 +270,7 @@
     </main>
 
     <footer class="site-footer">
-      <span>TravelOps Copilot · Portfolio Demo</span>
+      <span>TravelOps Copilot · Controlled Demo</span>
       <span>仅使用公开、模拟或脱敏数据</span>
     </footer>
 

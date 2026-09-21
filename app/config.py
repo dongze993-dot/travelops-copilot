@@ -26,6 +26,7 @@ _LOCAL_ENV_KEYS = frozenset(
         "TRAVELOPS_LLM_MAX_RETRIES",
         "TRAVELOPS_LLM_MAX_TOKENS",
         "TRAVELOPS_LLM_TEMPERATURE",
+        "TRAVELOPS_PUBLIC_DEMO_MODE",
     }
 )
 
@@ -76,6 +77,25 @@ def _parse_int(value: str | None, *, default: int, minimum: int, maximum: int) -
     except ValueError:
         return default
     return parsed if minimum <= parsed <= maximum else default
+
+
+@dataclass(frozen=True)
+class RuntimeSettings:
+    """Safe runtime switches that do not include credentials."""
+
+    public_demo_mode: bool
+
+    @classmethod
+    def from_environment(cls, environ: Mapping[str, str] | None = None) -> "RuntimeSettings":
+        if environ is None:
+            _load_local_env()
+            environ = os.environ
+        return cls(
+            public_demo_mode=_parse_bool(
+                environ.get("TRAVELOPS_PUBLIC_DEMO_MODE"),
+                default=False,
+            )
+        )
 
 
 @dataclass(frozen=True)

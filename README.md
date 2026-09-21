@@ -16,18 +16,7 @@
 4. 当用户需要人工跟进时，通过结构化 API 创建**模拟工单**；
 5. 用版本化评测集验证接口契约、预算约束与可追溯字段。
 
-它适合作为 AI 应用开发 / FDE / 解决方案交付方向的作品集：重点不是把“AI”当作黑盒，而是展示需求拆解、API 对接、JSON 数据契约、数据边界、部署与验收意识。
-
-## 能力映射
-
-| 岗位常见要求 | 本项目中的可审查证据 |
-| --- | --- |
-| Python 与后端 API | FastAPI 服务、请求模型、JSON 响应与健康检查 |
-| AI 应用 / 受控检索思路 | 受控知识检索、来源引用、无证据时的降级提示（不把合成数据包装成事实） |
-| Workflow / 结构化工具适配 | LangGraph 的 `parse → retrieve → plan → validate → revise_once? → finalize` 工作流，以及类型化的模拟工单工具边界 |
-| 企业系统对接意识 | 模拟 CRM 工单 API、优先级/联系人等结构化字段；真实系统对接不在本 PoC 范围内 |
-| Docker 与交付 | 本地容器化启动说明、健康检查、接口文档与可复现实验入口 |
-| 质量与复盘 | 版本化评测用例、原始 JSON 报告、指标定义与复跑入口 |
+项目重点不是把“AI”当作黑盒，而是将需求拆解、API 对接、JSON 数据契约、数据边界、部署与验收做成可审查的工程链路。
 
 ## 演示范围与边界
 
@@ -35,7 +24,9 @@
 
 **不声称具备：** 真实订单履约、实时价格/营业时间、真实地图/航班、真实 CRM 授权、生产级安全审计、医疗/安全建议或用户个人信息处理。
 
-这一区分很重要：在简历或面试中，请称它为“本地 PoC / 模拟业务接口”，不要称作已上线的真实旅游服务。
+这一区分很重要：它是“本地 PoC / 模拟业务接口”，不应描述为已上线的真实旅游服务。
+
+**公共主机边界：** 当 `TRAVELOPS_PUBLIC_DEMO_MODE=true` 时，页面会隐藏模拟工单入口，所有工单读取/创建接口以及任何带 `create_follow_up_ticket=true` 的规划请求都会返回 `403`。公开实例保持无状态，不应接收个人信息；`/health` 会返回 `public_demo_mode` 供外部验收。
 
 ## 技术栈
 
@@ -79,7 +70,7 @@ docker compose up --build
 
 ### 公共演示部署
 
-仓库根目录的 [`render.yaml`](render.yaml) 已为 Render Docker Web Service 准备好 Blueprint，Docker 镜像也会读取平台提供的 `PORT`。公共实例刻意将模型调用保持关闭，避免未鉴权公开接口消耗个人 API 额度；真实 DeepSeek 接入与评测证据保留在本仓库中。完整注册、部署和验收步骤见 [公共演示部署说明](docs/deployment.md)。
+仓库根目录的 [`render.yaml`](render.yaml) 已为 Render Docker Web Service 准备好 Blueprint，Docker 镜像也会读取平台提供的 `PORT`。公共实例刻意将模型调用保持关闭，并启用 `TRAVELOPS_PUBLIC_DEMO_MODE=true`，避免未鉴权公开接口消耗个人 API 额度或写入工单内容；真实 DeepSeek 接入与评测证据保留在本仓库中。完整注册、部署和验收步骤见 [公共演示部署说明](docs/deployment.md)。
 
 ## 主要 API（v1）
 
@@ -89,9 +80,9 @@ docker compose up --build
 | `GET` | `/api/v1/attractions` | 按目的地、兴趣查询合成知识库 |
 | `POST` | `/api/v1/plans` | 生成结构化行程草案及校验结果 |
 | `POST` | `/api/v2/plans` | 在 v1 基线之上返回经过 JSON/来源白名单校验的可选模型说明 |
-| `POST` | `/api/v1/tickets` | 创建模拟人工跟进工单 |
-| `GET` | `/api/v1/tickets/{ticket_id}` | 查询模拟工单 |
-| `GET` | `/api/v1/tickets` | 按状态或合成联系人查询模拟工单 |
+| `POST` | `/api/v1/tickets` | 创建本地模拟人工跟进工单；公共演示返回 `403` |
+| `GET` | `/api/v1/tickets/{ticket_id}` | 查询本地模拟工单；公共演示返回 `403` |
+| `GET` | `/api/v1/tickets` | 查询本地模拟工单；公共演示返回 `403` |
 
 接口的输入、输出与字段语义请看 [API 契约](docs/api-contract.md)。以下是一个规划请求示例：
 
@@ -115,7 +106,7 @@ docker compose up --build
 - [评测说明](evals/README.md)：版本化用例、覆盖维度与运行方式；
 - [指标口径](docs/metrics.md)：如何计算，而不是提前声称结果；
 - [模型评测规范](docs/model-evaluation.md)：真实 API 接入后如何生成可复跑、去敏的模型证据；
-- [演示验收清单](docs/demo-checklist.md)：录屏、面试与交付前自查。
+- [架构决策 ADR-0001](docs/decisions/0001-public-demo-boundary.md)：公开演示为何关闭工单读写，以及如何验证该边界；
 
 运行评测（服务启动后）：
 
@@ -123,7 +114,7 @@ docker compose up --build
 python scripts/run_eval.py --base-url http://127.0.0.1:8000 --suite evals/v1.jsonl
 ```
 
-脚本会将带时间戳的**原始报告**写到 `reports/`（若目录不存在会创建）。任何简历中的指标都应引用某一次已保存、可复跑的报告，并写明运行日期、数据版本、用例数和环境。
+脚本会将带时间戳的**原始报告**写到 `reports/`（若目录不存在会创建）。引用任何指标时，都应保留对应报告，并写明运行日期、数据版本、用例数和环境。
 
 ### 当前可复验证据
 
@@ -141,7 +132,7 @@ python scripts/run_eval.py --base-url http://127.0.0.1:8000 --suite evals/v1.jso
 
 这些数字只针对该次本地网络、该模型返回、该提示词和合成用例，且用例只验证 JSON 结构、来源白名单、逐日覆盖与降级分支；它们**不代表**真实旅行信息正确率、回答主观质量、生产性能、供应商 SLA、固定成本或用户效果。报告不含密钥、原始提示词内容或真实用户数据。
 
-## 推荐的 GitHub 迭代节奏
+## 建议的提交粒度
 
 不要一次性把项目“堆完”再上传。较可信的节奏是每完成一个可运行的切片就提交一次，例如：
 
@@ -152,20 +143,7 @@ python scripts/run_eval.py --base-url http://127.0.0.1:8000 --suite evals/v1.jso
 5. `test: add versioned API and constraint evaluation suite`
 6. `docs: add architecture, data provenance, and demo guide`
 
-提交信息应对应实际变化。不要为了作品集伪造提交时间、线上客户、用户数、节省工时或评测通过率。
-
-## 如何把它写进简历（基于已保存证据）
-
-> **TravelOps Copilot｜个人 AI 应用工程 PoC**  
-> - 使用 Python / FastAPI 实现面向旅行运营的结构化行程规划 API，覆盖受控知识检索、预算约束校验与可选模拟工单创建。  
-> - 设计 JSON 契约与工作流追踪字段，将“查询知识—生成草案—验证约束—人工跟进”拆分为可审查步骤；知识库为原创合成数据，未接入真实业务系统。  
-> - 建立 `evals/v1` 版本化评测集（42 条 HTTP 契约用例），在 Windows 11 / Python 3.12.14 本地环境生成原始 JSON 报告并通过 42/42 条；该指标仅覆盖合成数据和 API 契约，不代表真实旅游业务效果。
-> - 为 `/api/v2/plans` 接入 DeepSeek Chat Completions 的受控 JSON 输出：模型仅可解释经过确定性校验的候选，输出需经过 Pydantic、来源白名单和逐日覆盖校验，异常或越界时自动降级为确定性方案。
-> - 使用固定 30 条合成案例进行真实 API 黑盒评测：30/30 契约与受控来源断言通过；18/18 可调用案例完成模型增强，18/18 通过来源白名单与逐日覆盖校验。该数据只描述 2026-09-20 的本地测试，不表示真实旅游准确率或生产指标。
-
-如需写延迟或 token，应直接链接到报告并附带测试日期、模型、用例数和合成数据边界；不要写成“模型已稳定上线”，也不要杜撰用户数、成本节省或业务效果。
-
-面试时建议主动说清楚：哪些是你亲自实现的，哪些是借助文档或 AI 编程工具完成的，哪些数据和接口是模拟的。能解释、能复跑、能根据追问修改，远比夸大经历更有说服力。
+提交信息应对应实际变化。不得伪造提交时间、线上客户、用户数、节省工时或评测通过率。
 
 ## 仓库结构
 

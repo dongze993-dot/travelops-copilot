@@ -216,6 +216,7 @@ class HealthResponse(APIModel):
     status: Literal["ok"] = "ok"
     mode: Literal["deterministic_mock"] = "deterministic_mock"
     knowledge_records: int = Field(ge=0)
+    public_demo_mode: bool = False
 
 
 class AttractionSearchResponse(APIModel):

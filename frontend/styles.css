@@ -31,6 +31,7 @@ body {
 button, input, textarea, select { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: wait; opacity: 0.72; }
+[hidden] { display: none !important; }
 
 .ambient {
   position: fixed;
@@ -110,6 +111,8 @@ button:disabled { cursor: wait; opacity: 0.72; }
 .intro-copy { max-width: 660px; margin: 22px 0; color: #4f5e62; font-size: 16px; line-height: 1.9; }
 .trust-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .trust-row span { padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; color: #506064; font-size: 12px; background: rgba(255,255,255,.45); }
+.public-demo-notice { max-width: 660px; margin: 16px 0 0; padding: 10px 12px; border: 1px solid #d6ba77; border-radius: 10px; color: #70531d; background: #fff6de; font-size: 12px; line-height: 1.65; }
+.public-demo-notice strong { color: #5c4315; }
 
 .workspace { display: grid; grid-template-columns: minmax(310px, 0.86fr) minmax(0, 1.4fr); gap: 22px; align-items: start; }
 .panel { border: 1px solid rgba(24, 54, 54, 0.12); border-radius: 20px; background: var(--panel); box-shadow: var(--shadow); backdrop-filter: blur(12px); }

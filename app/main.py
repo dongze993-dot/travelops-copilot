@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import LLMSettings
+from .config import LLMSettings, RuntimeSettings
 from .crm import SQLiteTicketStore, TicketNotFoundError
 from .knowledge import LocalKnowledgeBase
 from .llm import DeepSeekNarrativeGenerator
@@ -41,6 +41,7 @@ def create_app(
     knowledge_path: str | Path | None = None,
     llm_settings: LLMSettings | None = None,
     llm_transport: httpx.BaseTransport | None = None,
+    public_demo_mode: bool | None = None,
 ) -> FastAPI:
     """Create an app instance; injectable paths keep integration tests isolated."""
 
@@ -48,6 +49,10 @@ def create_app(
     tickets = SQLiteTicketStore(db_path or _default_db_path())
     tools = TravelOpsTools(knowledge, tickets)
     workflow = TravelPlanningWorkflow(tools)
+    runtime_settings = RuntimeSettings.from_environment()
+    is_public_demo = (
+        runtime_settings.public_demo_mode if public_demo_mode is None else public_demo_mode
+    )
     settings = llm_settings or LLMSettings.from_environment()
     model_workflow = ModelEnhancedTravelPlanningWorkflow(
         tools,
@@ -56,7 +61,7 @@ def create_app(
 
     app = FastAPI(
         title="TravelOps Copilot API",
-        version="0.1.0",
+        version="0.2.0",
         description=(
             "A controlled-data TravelOps proof of concept. v1 is deterministic; "
             "v2 can add a validated DeepSeek explanation without changing the "
@@ -68,6 +73,19 @@ def create_app(
     app.state.tickets = tickets
     app.state.workflow = workflow
     app.state.model_workflow = model_workflow
+    app.state.public_demo_mode = is_public_demo
+
+    def reject_ticket_workflows_in_public_demo() -> None:
+        """Keep public demos stateless and reject potentially personal ticket data."""
+
+        if is_public_demo:
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "Ticket workflows are disabled in public demo mode. "
+                    "Do not submit personal information."
+                ),
+            )
 
     # `check_dir=False` lets API-only tests instantiate the app before the
     # separately owned frontend files are present.
@@ -80,7 +98,10 @@ def create_app(
 
     @app.get("/health", response_model=HealthResponse, tags=["system"])
     def health() -> HealthResponse:
-        return HealthResponse(knowledge_records=knowledge.record_count)
+        return HealthResponse(
+            knowledge_records=knowledge.record_count,
+            public_demo_mode=is_public_demo,
+        )
 
     @app.get("/api/v1/attractions", response_model=AttractionSearchResponse, tags=["knowledge"])
     def search_attractions(
@@ -101,6 +122,8 @@ def create_app(
     @app.post("/api/v1/plans", response_model=TravelPlanResponse, tags=["planning"])
     @app.post("/api/plan", response_model=TravelPlanResponse, include_in_schema=False)
     def create_plan(request: TravelPlanningRequest) -> TravelPlanResponse:
+        if request.create_follow_up_ticket:
+            reject_ticket_workflows_in_public_demo()
         return workflow.run(request)
 
     @app.post(
@@ -111,16 +134,20 @@ def create_app(
     def create_model_assisted_plan(request: TravelPlanningRequest) -> ModelAssistedPlanResponse:
         """Return a v1-compatible plan plus a guarded optional model explanation."""
 
+        if request.create_follow_up_ticket:
+            reject_ticket_workflows_in_public_demo()
         return model_workflow.run(request)
 
     @app.post("/api/v1/tickets", response_model=TicketRecord, status_code=201, tags=["mock crm"])
     @app.post("/api/tickets", response_model=TicketRecord, status_code=201, include_in_schema=False)
     def create_ticket(request: TicketCreateRequest) -> TicketRecord:
+        reject_ticket_workflows_in_public_demo()
         return tickets.create_ticket(request)
 
     @app.get("/api/v1/tickets/{ticket_id}", response_model=TicketRecord, tags=["mock crm"])
     @app.get("/api/tickets/{ticket_id}", response_model=TicketRecord, include_in_schema=False)
     def get_ticket(ticket_id: str) -> TicketRecord:
+        reject_ticket_workflows_in_public_demo()
         try:
             return tickets.get_ticket(ticket_id)
         except TicketNotFoundError as exc:
@@ -132,6 +159,7 @@ def create_app(
         contact_name: str | None = Query(default=None, max_length=80),
         limit: Annotated[int, Query(ge=1, le=100)] = 20,
     ) -> list[TicketRecord]:
+        reject_ticket_workflows_in_public_demo()
         return tickets.query_tickets(status=status, contact_name=contact_name, limit=limit)
 
     # The frontend is owned separately.  Serve it only when present so the API

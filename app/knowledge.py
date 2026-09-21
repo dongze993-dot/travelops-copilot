@@ -133,7 +133,7 @@ class LocalKnowledgeBase:
                 if isinstance(loaded, list) and loaded:
                     raw_records = loaded
             except (OSError, json.JSONDecodeError):
-                # A bad optional demo-data file should not stop a portfolio demo
+                # A bad optional demo-data file should not stop a controlled demo
                 # from starting; the health endpoint still exposes record count.
                 raw_records = _FALLBACK_ATTRACTIONS
 
@@ -187,7 +187,7 @@ class LocalKnowledgeBase:
             # Prefer lower-cost records for deterministic tie-breaking, then id.
             scored.append((city_score + interest_score, attraction.id, attraction))
 
-        # A portfolio demo must not silently turn a city mismatch into a plan
+        # A controlled demo must not silently turn a city mismatch into a plan
         # for another city.  Callers get an explicit empty result and can route
         # that case to manual data collection instead.
         candidates = [entry for entry in scored if entry[0] >= 10]

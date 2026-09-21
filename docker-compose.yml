@@ -18,6 +18,7 @@ services:
       TRAVELOPS_LLM_MAX_RETRIES: "${TRAVELOPS_LLM_MAX_RETRIES:-1}"
       TRAVELOPS_LLM_MAX_TOKENS: "${TRAVELOPS_LLM_MAX_TOKENS:-800}"
       TRAVELOPS_LLM_TEMPERATURE: "${TRAVELOPS_LLM_TEMPERATURE:-0}"
+      TRAVELOPS_PUBLIC_DEMO_MODE: "${TRAVELOPS_PUBLIC_DEMO_MODE:-false}"
     volumes:
       - travelops_runtime:/app/runtime
     healthcheck:

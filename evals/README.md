@@ -12,7 +12,7 @@
 python scripts/run_eval.py --base-url http://127.0.0.1:8000 --suite evals/v1.jsonl
 ```
 
-评测器只通过公开 HTTP API 访问服务，不导入 `app/` 中的函数。运行后的 JSON 报告默认写入 `reports/`，包含请求状态、断言、耗时和 suite 哈希。报告未生成前，请不要在简历或 README 中写通过率。
+评测器只通过公开 HTTP API 访问服务，不导入 `app/` 中的函数。运行后的 JSON 报告默认写入 `reports/`，包含请求状态、断言、耗时和 suite 哈希。报告未生成前，不应对外声称通过率。
 
 ## 用例覆盖（v1）
 

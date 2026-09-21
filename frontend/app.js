@@ -19,8 +19,15 @@
   const emptyState = document.querySelector("#empty-state");
   const resultState = document.querySelector("#result-state");
   const useModelEnhancement = document.querySelector("#use-model-enhancement");
+  const createFollowUpTicket = document.querySelector("#create-follow-up-ticket");
+  const followUpTicketOption = document.querySelector("#follow-up-ticket-option");
+  const handoffCard = document.querySelector("#handoff-card");
+  const handoffCapability = document.querySelector("#handoff-capability");
+  const publicDemoNotice = document.querySelector("#public-demo-notice");
+  const environmentLabel = document.querySelector("#environment-label");
 
   let lastPlanId = null;
+  let isPublicDemo = false;
 
   const today = new Date();
   today.setDate(today.getDate() + 7);
@@ -78,6 +85,27 @@
     return parseResponse(response);
   }
 
+  function enablePublicDemoMode() {
+    isPublicDemo = true;
+    createFollowUpTicket.checked = false;
+    createFollowUpTicket.disabled = true;
+    followUpTicketOption.hidden = true;
+    handoffCard.hidden = true;
+    handoffCapability.hidden = true;
+    publicDemoNotice.hidden = false;
+    environmentLabel.textContent = "公开演示环境";
+  }
+
+  async function detectPublicDemoMode() {
+    try {
+      const response = await fetch("/health", { headers: { Accept: "application/json" } });
+      const health = await parseResponse(response);
+      if (health.public_demo_mode === true) enablePublicDemoMode();
+    } catch {
+      // A failed status probe must not pretend the current host is public.
+    }
+  }
+
   function cny(value) {
     const number = Number(value);
     return Number.isFinite(number)
@@ -100,7 +128,7 @@
       interests,
       travel_style: document.querySelector('input[name="travel_style"]:checked').value,
       notes: document.querySelector("#notes").value.trim() || undefined,
-      create_follow_up_ticket: document.querySelector("#create-follow-up-ticket").checked,
+      create_follow_up_ticket: !isPublicDemo && createFollowUpTicket.checked,
     };
   }
 
@@ -252,7 +280,7 @@
     const ticketBanner = document.querySelector("#plan-ticket");
     if (ticket?.ticket_id) {
       ticketBanner.hidden = false;
-      ticketBanner.innerHTML = `已创建跟进工单：<code>${escapeHtml(ticket.ticket_id)}</code>。你可在面试演示中说明：AI 在不确定时将请求交给人工队列。`;
+      ticketBanner.innerHTML = `已创建跟进工单：<code>${escapeHtml(ticket.ticket_id)}</code>。该请求已交给模拟服务队列。`;
     } else {
       ticketBanner.hidden = true;
       ticketBanner.textContent = "";
@@ -310,6 +338,10 @@
 
   ticketForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (isPublicDemo) {
+      setStatus(ticketStatus, "公开演示已关闭工单读写，请勿提交个人信息。", "error");
+      return;
+    }
     if (!ticketForm.reportValidity()) return;
     const title = document.querySelector("#ticket-title").value.trim();
     const description = document.querySelector("#ticket-description").value.trim();
@@ -323,7 +355,7 @@
       description,
       priority: document.querySelector("#ticket-priority").value,
       source_plan_id: lastPlanId || undefined,
-      metadata: { channel: "travelops-portfolio-ui" },
+      metadata: { channel: "travelops-controlled-demo-ui" },
     };
     setStatus(ticketStatus, "正在创建工单…");
     setButtonLoading(ticketButton, true, "正在创建");
@@ -338,4 +370,6 @@
       setButtonLoading(ticketButton, false);
     }
   });
+
+  void detectPublicDemoMode();
 })();

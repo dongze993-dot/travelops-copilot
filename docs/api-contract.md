@@ -21,11 +21,12 @@
 {
   "status": "ok",
   "mode": "deterministic_mock",
-  "knowledge_records": 12
+  "knowledge_records": 12,
+  "public_demo_mode": false
 }
 ```
 
-`knowledge_records` 为当前加载的合成资料条数，随数据版本变化；调用方不应把健康检查视为真实外部服务可用性的证明。
+`knowledge_records` 为当前加载的合成资料条数，随数据版本变化；`public_demo_mode` 表示当前服务是否拒绝所有模拟工单读写。调用方不应把健康检查视为真实外部服务可用性的证明。
 
 ## `GET /api/v1/attractions`
 
@@ -93,6 +94,8 @@
 | `notes` | 否 | string | 最多 500 字符的演示备注；不传真实敏感信息 |
 | `create_follow_up_ticket` | 否 | boolean | 仅为 `true` 时尝试创建模拟工单 |
 | `contact_name` | 否 | string | 本地演示字段，不应当作生产级 PII 处理方案 |
+
+当 `TRAVELOPS_PUBLIC_DEMO_MODE=true` 时，任何带 `create_follow_up_ticket=true` 的 v1 或 v2 规划请求都会返回 `403`，且不得重试为工单写入。公开演示页面会隐藏该选项；调用方也不应把个人信息放入 `notes` 或 `contact_name`。
 
 ### 成功响应的核心语义
 
@@ -256,6 +259,8 @@ v2 使用与 `POST /api/v1/plans` 相同的请求体和确定性规划基础，�
 | `metadata` | 否 | 结构化演示上下文；禁止放敏感数据 |
 
 成功响应状态为 `201`，包含 `ticket_id`、`status`、`priority`、`created_at`、`updated_at` 及请求字段。它绝不代表真实客服已接单。
+
+当 `TRAVELOPS_PUBLIC_DEMO_MODE=true` 时，本节的创建、按 ID 查询和列表查询接口均固定返回 `403`，响应说明工单流程已在公开演示中关闭。该边界避免无鉴权公共服务持久化访客提交的内容。
 
 ## `GET /api/v1/tickets/{ticket_id}`
 

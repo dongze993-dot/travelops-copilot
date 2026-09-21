@@ -52,3 +52,33 @@ def test_missing_ticket_returns_404(tmp_path) -> None:
     client = TestClient(create_app(db_path=tmp_path / "crm.db"))
     response = client.get("/api/v1/tickets/TCK-DOES-NOT-EXIST")
     assert response.status_code == 404
+
+
+def test_public_demo_blocks_ticket_workflows_but_keeps_planning_available(tmp_path) -> None:
+    client = TestClient(create_app(db_path=tmp_path / "crm.db", public_demo_mode=True))
+    request = {
+        "destination": "杭州",
+        "days": 2,
+        "travelers": 2,
+        "total_budget_cny": 4000,
+        "interests": ["自然", "人文"],
+    }
+
+    health = client.get("/health")
+    assert health.status_code == 200
+    assert health.json()["public_demo_mode"] is True
+
+    plan = client.post("/api/v1/plans", json=request)
+    assert plan.status_code == 200
+
+    for endpoint in ("/api/v1/plans", "/api/v2/plans"):
+        response = client.post(endpoint, json={**request, "create_follow_up_ticket": True})
+        assert response.status_code == 403
+        assert "disabled in public demo mode" in response.json()["detail"]
+
+    create_ticket = client.post(
+        "/api/v1/tickets",
+        json={"title": "Synthetic demo request", "description": "No personal data."},
+    )
+    assert create_ticket.status_code == 403
+    assert client.get("/api/v1/tickets").status_code == 403

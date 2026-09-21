@@ -7,10 +7,14 @@ services:
     dockerContext: .
     healthCheckPath: /health
     envVars:
-      # Keep the public portfolio deterministic. An unauthenticated public
-      # model endpoint could otherwise expose the owner's API budget.
+      # Keep the public service deterministic. An unauthenticated model route
+      # could otherwise expose the service owner's API budget.
       - key: TRAVELOPS_LLM_ENABLED
         value: "false"
-      # The mock CRM is intentionally ephemeral in the public demo.
+      # Disable all mock-CRM reads and writes on the public service.
+      - key: TRAVELOPS_PUBLIC_DEMO_MODE
+        value: "true"
+      # This is harmless while public demo mode is enabled, and keeps local
+      # behavior explicit if the flag is intentionally changed later.
       - key: TRAVELOPS_DB_PATH
         value: /tmp/travelops_mock_crm.db
