@@ -75,3 +75,66 @@ jobs:
           fi
 
           python scripts/run_eval.py --base-url http://127.0.0.1:8000 --suite evals/v1.jsonl
+
+  container-public-demo-smoke:
+    name: Docker public-demo smoke
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build --tag travelops-copilot:ci .
+      - name: Verify public-demo boundary in the container
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          container_name="travelops-copilot-public-demo-${GITHUB_RUN_ID}"
+
+          cleanup() {
+            local exit_code=$?
+            trap - EXIT
+            if [ "$exit_code" -ne 0 ]; then
+              echo "Container output after failure:"
+              docker logs "$container_name" 2>&1 || true
+            fi
+            docker rm --force "$container_name" >/dev/null 2>&1 || true
+            exit "$exit_code"
+          }
+          trap cleanup EXIT
+
+          docker run --detach --name "$container_name" --publish 127.0.0.1:8000:8000 \
+            --env TRAVELOPS_PUBLIC_DEMO_MODE=true \
+            --env TRAVELOPS_LLM_ENABLED=false \
+            travelops-copilot:ci >/dev/null
+
+          ready=false
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:8000/health > health.json; then
+              ready=true
+              break
+            fi
+            if ! docker ps --format '{{.Names}}' | grep --fixed-strings --quiet "$container_name"; then
+              echo "Container exited before /health became ready."
+              exit 1
+            fi
+            sleep 1
+          done
+
+          if [ "$ready" != true ]; then
+            echo "Container did not become ready at /health within 30 seconds."
+            exit 1
+          fi
+
+          python3 -c 'import json, sys; assert json.load(open("health.json"))["public_demo_mode"] is True, "public_demo_mode must be true"'
+
+          ticket_status=$(curl --silent --show-error --output ticket-response.json --write-out '%{http_code}' \
+            --request POST http://127.0.0.1:8000/api/v1/tickets \
+            --header 'Content-Type: application/json' \
+            --data '{"title":"CI boundary check","description":"Public demo ticket writes must be disabled."}')
+
+          if [ "$ticket_status" != "403" ]; then
+            echo "Expected public-demo ticket creation to return HTTP 403; received HTTP $ticket_status."
+            cat ticket-response.json
+            exit 1
+          fi
