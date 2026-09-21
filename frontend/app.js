@@ -6,6 +6,7 @@
   const API = {
     plan: "/api/v1/plans",
     modelPlan: "/api/v2/plans",
+    livePlan: "/api/v3/live-plans",
     tickets: "/api/v1/tickets",
   };
   const isStaticBrowserDemo = window.TRAVELOPS_STATIC_DEMO === true;
@@ -20,6 +21,9 @@
   const emptyState = document.querySelector("#empty-state");
   const resultState = document.querySelector("#result-state");
   const useModelEnhancement = document.querySelector("#use-model-enhancement");
+  const useLiveRetrieval = document.querySelector("#use-live-retrieval");
+  const liveRetrievalOption = document.querySelector("#live-retrieval-option");
+  const liveRetrievalHelp = document.querySelector("#live-retrieval-help");
   const createFollowUpTicket = document.querySelector("#create-follow-up-ticket");
   const followUpTicketOption = document.querySelector("#follow-up-ticket-option");
   const handoffCard = document.querySelector("#handoff-card");
@@ -29,6 +33,7 @@
 
   let lastPlanId = null;
   let isPublicDemo = false;
+  let liveRetrievalEnabled = false;
 
   const today = new Date();
   today.setDate(today.getDate() + 7);
@@ -115,6 +120,9 @@
     publicDemoNotice.hidden = false;
     document.querySelector("#notes").closest(".notes-field").hidden = true;
     if (isStaticBrowserDemo) {
+      useLiveRetrieval.checked = false;
+      useLiveRetrieval.disabled = true;
+      liveRetrievalOption.hidden = true;
       useModelEnhancement.checked = false;
       useModelEnhancement.disabled = true;
       useModelEnhancement.closest(".model-option").hidden = true;
@@ -129,8 +137,19 @@
       useModelEnhancement.closest(".model-option").hidden = true;
     }
     if (health.deployment === "netlify_functions") {
-      publicDemoNotice.innerHTML = "<strong>Netlify API 公开演示：</strong>页面请求由 Serverless Function 返回合成数据的确定性结果；不运行 FastAPI、LangGraph、DeepSeek 或 CRM，且已关闭模型与工单。请勿输入个人信息。";
-      environmentLabel.textContent = "Netlify API 演示";
+      liveRetrievalEnabled = health.live_retrieval?.enabled === true;
+      useLiveRetrieval.checked = liveRetrievalEnabled;
+      useLiveRetrieval.disabled = !liveRetrievalEnabled;
+      liveRetrievalOption.hidden = false;
+      if (liveRetrievalEnabled) {
+        liveRetrievalHelp.textContent = "仅服务端向检索服务发送目的地和选中的偏好；结果附可打开来源，票价与营业状态仍需核验。";
+        publicDemoNotice.innerHTML = "<strong>Netlify API 联网检索演示：</strong>开启联网检索后，Serverless Function 会将目的地和选中的偏好发送给外部检索服务，并返回可打开的网页来源；模型、工单、FastAPI 与订票功能仍关闭。请勿输入个人信息。";
+        environmentLabel.textContent = "Netlify 联网检索演示";
+      } else {
+        liveRetrievalHelp.textContent = "联网检索尚未由部署管理员配置；当前只能运行本地合成演示，未知城市不会被编造成真实结果。";
+        publicDemoNotice.innerHTML = "<strong>Netlify API 演示：</strong>当前仅返回合成数据的确定性结果；联网检索尚未配置，因此未知城市不会被编造成真实结果。模型、工单、FastAPI 与订票功能均关闭。请勿输入个人信息。";
+        environmentLabel.textContent = "Netlify 合成演示";
+      }
       return;
     }
     environmentLabel.textContent = "公开演示环境";
@@ -181,7 +200,10 @@
     document.querySelector("#metric-row").innerHTML = [
       [plural(summary.days, "天"), "行程周期"],
       [plural(summary.travelers, "人"), "出行人数"],
-      [cny(budget.estimated_total_cny), "预计花费"],
+      [
+        cny(budget.mode === "allocation_framework" ? budget.budget_cap_cny : budget.estimated_total_cny),
+        budget.summary_label || "预计花费",
+      ],
     ].map(([value, label]) => `<div class="metric"><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></div>`).join("");
   }
 
@@ -213,7 +235,8 @@
       <div><strong>${escapeHtml(item.category || "其他")}</strong>${item.assumption ? `<small>${escapeHtml(item.assumption)}</small>` : ""}</div>
       <span class="budget-amount">${cny(item.amount_cny)}</span>
     </div>`).join("")}
-    <div class="budget-total"><span>预计总计</span><span>${cny(budget.estimated_total_cny)}</span></div>`;
+    ${budget.notice ? `<p class="budget-notice">${escapeHtml(budget.notice)}</p>` : ""}
+    <div class="budget-total"><span>${escapeHtml(budget.total_label || "预计总计")}</span><span>${cny(budget.mode === "allocation_framework" ? budget.budget_cap_cny : budget.estimated_total_cny)}</span></div>`;
   }
 
   function renderTrace(trace = []) {
@@ -231,6 +254,35 @@
       const heading = href ? `<a href="${escapeHtml(href)}" target="_blank" rel="noreferrer">${title} ↗</a>` : `<strong>${title}</strong>`;
       return `<article class="citation"><div class="citation-top">${heading}<span class="citation-relevance">${escapeHtml(source.relevance || "参考")}</span></div>${source.excerpt ? `<p>${escapeHtml(source.excerpt)}</p>` : ""}</article>`;
     }).join("") || '<p class="empty-inline">本次方案未返回可展示的来源。</p>';
+  }
+
+  function renderRetrieval(retrieval) {
+    const section = document.querySelector("#retrieval-section");
+    if (!retrieval || typeof retrieval !== "object") {
+      section.hidden = true;
+      return;
+    }
+    section.hidden = false;
+    const sourceCount = Number(retrieval.source_count) || 0;
+    const statusLabel = {
+      live: "实时检索",
+      cache_hit: "短时缓存",
+      no_results: "未找到来源",
+    }[retrieval.status] || "待核验";
+    document.querySelector("#retrieval-badge").textContent = statusLabel;
+    const detail = [
+      ["来源", retrieval.provider || "—"],
+      ["条数", `${sourceCount} 条`],
+      ["获取时间", retrieval.retrieved_at ? new Date(retrieval.retrieved_at).toLocaleString("zh-CN", { hour12: false }) : "—"],
+      ["缓存", retrieval.cache_age_seconds ? `${retrieval.cache_age_seconds} 秒` : "本次请求"],
+    ];
+    document.querySelector("#retrieval-metadata").innerHTML = detail
+      .map(([label, value]) => `<span><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></span>`)
+      .join("");
+    const notices = Array.isArray(retrieval.notices) ? retrieval.notices : [];
+    document.querySelector("#retrieval-notices").innerHTML = notices.length
+      ? `<ul>${notices.map((notice) => `<li>${escapeHtml(notice)}</li>`).join("")}</ul>`
+      : "";
   }
 
   function modelFallbackMessage(code) {
@@ -318,6 +370,7 @@
     renderBudget(plan.budget);
     renderTrace(plan.workflow_trace);
     renderModelNarrative(plan);
+    renderRetrieval(plan.retrieval);
     renderCitations(plan.citations);
 
     const ticket = plan.ticket;
@@ -352,16 +405,21 @@
       return;
     }
 
-    const requestingModel = useModelEnhancement.checked;
+    const requestingLive = liveRetrievalEnabled && useLiveRetrieval.checked;
+    const requestingModel = !requestingLive && useModelEnhancement.checked;
     setStatus(
       planStatus,
-      requestingModel ? "正在生成并校验受控模型说明…" : "正在从受控知识库检索并生成结构化方案…"
+      requestingLive
+        ? "正在联网检索公开网页来源并生成待核验方案…"
+        : requestingModel
+          ? "正在生成并校验受控模型说明…"
+          : "正在从受控知识库检索并生成结构化方案…"
     );
     setButtonLoading(planButton, true, "正在生成");
     resultState.textContent = "生成中";
     resultState.className = "result-state";
     try {
-      const plan = await postJson(requestingModel ? API.modelPlan : API.plan, payload);
+      const plan = await postJson(requestingLive ? API.livePlan : requestingModel ? API.modelPlan : API.plan, payload);
       renderPlan(plan);
       const extra = plan.validation?.issues?.length ? " 已标注需要人工复核的事项。" : "";
       const modelExtra = requestingModel
@@ -369,7 +427,10 @@
           ? " 模型说明已通过来源校验。"
           : " 模型未被采用，已保留确定性结果。"
         : "";
-      setStatus(planStatus, `方案 ${plan.plan_id || ""} 已生成。${extra}${modelExtra}`, "success");
+      const liveExtra = requestingLive
+        ? ` 已返回 ${Number(plan.retrieval?.source_count) || 0} 条联网来源，请逐条打开核验。`
+        : "";
+      setStatus(planStatus, `方案 ${plan.plan_id || ""} 已生成。${extra}${modelExtra}${liveExtra}`, "success");
     } catch (error) {
       const message = error instanceof Error ? error.message : "暂时无法生成方案，请检查服务是否已启动。";
       setStatus(planStatus, `生成失败：${message}`, "error");

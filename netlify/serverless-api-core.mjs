@@ -73,8 +73,10 @@ function validatePlanningPayload(payload) {
   if (!isFiniteNumber(payload.total_budget_cny) || payload.total_budget_cny <= 0 || payload.total_budget_cny > 100000) {
     return "total_budget_cny 必须是 0 到 100000 之间的数字。";
   }
-  if (payload.interests != null && (!Array.isArray(payload.interests) || payload.interests.some((item) => typeof item !== "string"))) {
-    return "interests 必须是字符串数组。";
+  if (payload.interests != null && (!Array.isArray(payload.interests)
+    || payload.interests.length > 8
+    || payload.interests.some((item) => typeof item !== "string" || !item.trim() || item.trim().length > 40))) {
+    return "interests 必须是最多 8 项、每项 1 到 40 个字符的字符串数组。";
   }
   if (payload.travel_style != null && !TRAVEL_STYLES.has(payload.travel_style)) {
     return "travel_style 必须是 budget、balanced 或 comfort。";
@@ -105,6 +107,55 @@ export async function readPublicPlanPayload(request) {
   if (issue) return jsonResponse({ detail: issue }, 422);
   if (payload.create_follow_up_ticket === true) return publicDemoBlocked();
   return payload;
+}
+
+/**
+ * Live search has a smaller data boundary than the deterministic demo. This
+ * projection ensures only destination and selected interests ever reach an
+ * external provider. In particular, notes are never silently forwarded.
+ */
+export async function readLivePlanPayload(request) {
+  const payload = await readPublicPlanPayload(request);
+  if (payload instanceof Response) return payload;
+  if (typeof payload.notes === "string" && payload.notes.trim()) {
+    return jsonResponse(
+      { detail: "联网检索不接收补充说明；请勿输入个人信息。", code: "live_retrieval_notes_not_allowed" },
+      422,
+    );
+  }
+  return {
+    destination: payload.destination.trim(),
+    ...(payload.start_date ? { start_date: payload.start_date } : {}),
+    days: payload.days,
+    travelers: payload.travelers,
+    total_budget_cny: payload.total_budget_cny,
+    interests: Array.isArray(payload.interests) ? payload.interests.map((item) => item.trim()) : [],
+    travel_style: payload.travel_style || "balanced",
+  };
+}
+
+export function readLiveAttractionQuery(url) {
+  const destination = url.searchParams.get("destination")?.trim() || "";
+  if (!destination || destination.length > 80) {
+    return jsonResponse({ detail: "destination 必须是 1 到 80 个字符。" }, 422);
+  }
+  const interests = (url.searchParams.get("interests") || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (interests.length > 8 || interests.some((item) => item.length > 40)) {
+    return jsonResponse({ detail: "interests 最多 8 项，且每项最多 40 个字符。" }, 422);
+  }
+  const rawLimit = url.searchParams.get("limit");
+  const limit = rawLimit == null ? undefined : Number(rawLimit);
+  if (limit != null && (!Number.isInteger(limit) || limit < 1 || limit > 8)) {
+    return jsonResponse({ detail: "limit 必须是 1 到 8 的整数。" }, 422);
+  }
+  return {
+    destination,
+    interests,
+    ...(limit == null ? {} : { requested_limit: limit }),
+  };
 }
 
 export function createNetlifyPlan(payload, { modelAssisted = false } = {}) {

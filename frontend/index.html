@@ -130,6 +130,17 @@
               ></textarea>
             </label>
 
+            <div id="live-retrieval-option" class="live-retrieval-option">
+              <label class="toggle-label">
+                <input id="use-live-retrieval" type="checkbox" disabled />
+                <span class="toggle-track" aria-hidden="true"><span></span></span>
+                <span>
+                  <strong>联网检索公开网页来源</strong>
+                  <small id="live-retrieval-help">正在检查联网检索是否已由部署管理员配置。</small>
+                </span>
+              </label>
+            </div>
+
             <div class="model-option">
               <label class="toggle-label">
                 <input id="use-model-enhancement" type="checkbox" />
@@ -223,6 +234,15 @@
               </div>
               <div id="model-generation" class="model-generation"></div>
               <div id="model-narrative" class="model-narrative"></div>
+            </section>
+
+            <section id="retrieval-section" class="result-section retrieval-section" aria-labelledby="retrieval-heading" hidden>
+              <div class="result-section-heading">
+                <h3 id="retrieval-heading">联网检索状态</h3>
+                <span id="retrieval-badge" class="count-pill">等待检索</span>
+              </div>
+              <div id="retrieval-metadata" class="retrieval-metadata"></div>
+              <div id="retrieval-notices" class="retrieval-notices"></div>
             </section>
 
             <section class="result-section" aria-labelledby="sources-heading">
