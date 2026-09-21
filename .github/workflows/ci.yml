@@ -19,8 +19,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Install Netlify Function runtime dependency
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Verify Netlify Blobs runtime import
+        run: node --input-type=module -e "await import('@netlify/blobs')"
       - name: Test public demo adapters
-        run: node --test tests/static_demo.test.mjs tests/netlify_api.test.mjs tests/live_retrieval.test.mjs
+        run: node --test tests/static_demo.test.mjs tests/netlify_api.test.mjs tests/live_retrieval.test.mjs tests/live_query_quota.test.mjs
       - name: Build static public artifact
         shell: bash
         run: |

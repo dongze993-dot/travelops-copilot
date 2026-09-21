@@ -10,6 +10,7 @@ import {
 } from "../netlify/live-retrieval-core.mjs";
 import liveAttractions, { config as liveAttractionsConfig } from "../netlify/functions/live-attractions.mjs";
 import livePlan, { config as livePlanConfig } from "../netlify/functions/live-plans.mjs";
+import { LiveQueryQuotaError } from "../netlify/live-query-quota.mjs";
 
 const ORIGIN = "https://travelops-netlify.example";
 
@@ -43,6 +44,10 @@ function providerResponse(results) {
   });
 }
 
+async function allowQuota() {
+  return { status: "reserved" };
+}
+
 test("live retrieval sends only bounded destination/interests and returns safe source citations for 上饶", async () => {
   const captured = [];
   const now = Date.UTC(2026, 8, 21, 12, 0, 0);
@@ -53,6 +58,7 @@ test("live retrieval sends only bounded destination/interests and returns safe s
     env: enabledEnvironment(),
     cache: new Map(),
     now: () => now,
+    reserveQuota: allowQuota,
     fetchImpl: async (url, init) => {
       captured.push({ url, init });
       return providerResponse([
@@ -103,6 +109,7 @@ test("live retrieval cache avoids a duplicate provider call and reports cache ag
     env: enabledEnvironment(),
     cache,
     now: () => clock,
+    reserveQuota: allowQuota,
     fetchImpl: async () => {
       calls += 1;
       return providerResponse([{ title: "上饶来源", url: "https://example.com/shangrao", content: "检索摘要" }]);
@@ -135,6 +142,7 @@ test("live retrieval fails closed when no server-side key is configured", async 
     mode: "live_web",
     provider: null,
     credential_exposed_to_browser: false,
+    daily_query_quota: 15,
     notes: ["联网检索尚未配置；当前仅可使用本地合成演示。"],
   });
   assert.equal(liveRetrievalConfig({ TAVILY_API_KEY: "secret" }).enabled, false);
@@ -145,6 +153,7 @@ test("live retrieval returns safe provider failure codes without exposing a key 
     () => retrieveLiveTravelSources(planningPayload(), {
       env: enabledEnvironment(),
       cache: new Map(),
+      reserveQuota: allowQuota,
       fetchImpl: async () => new Response("provider said test-tavily-secret", { status: 432 }),
     }),
     (error) => error instanceof LiveRetrievalError
@@ -156,6 +165,7 @@ test("live retrieval returns safe provider failure codes without exposing a key 
     () => retrieveLiveTravelSources(planningPayload(), {
       env: enabledEnvironment(),
       cache: new Map(),
+      reserveQuota: allowQuota,
       fetchImpl: async () => {
         const error = new Error("timeout");
         error.name = "AbortError";
@@ -164,6 +174,25 @@ test("live retrieval returns safe provider failure codes without exposing a key 
     }),
     (error) => error instanceof LiveRetrievalError && error.code === "live_provider_timeout" && error.status === 504,
   );
+});
+
+test("live retrieval does not call the provider when its durable quota guard denies the request", async () => {
+  let providerCalls = 0;
+  await assert.rejects(
+    () => retrieveLiveTravelSources(planningPayload(), {
+      env: enabledEnvironment(),
+      cache: new Map(),
+      reserveQuota: async () => {
+        throw new LiveQueryQuotaError("live_search_demo_quota_exhausted", "daily guard reached", 429);
+      },
+      fetchImpl: async () => {
+        providerCalls += 1;
+        return providerResponse([]);
+      },
+    }),
+    (error) => error instanceof LiveRetrievalError && error.code === "live_search_demo_quota_exhausted" && error.status === 429,
+  );
+  assert.equal(providerCalls, 0);
 });
 
 test("live web plan retains source IDs and labels prices as unverified rather than zero", () => {
