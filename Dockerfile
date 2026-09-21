@@ -19,4 +19,6 @@ RUN mkdir -p /app/runtime
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Hosting platforms commonly provide PORT at runtime. Keep 8000 as the local
+# default while allowing the same image to bind to the assigned public port.
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

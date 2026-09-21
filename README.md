@@ -77,6 +77,10 @@ docker compose up --build
 
 容器启动后仍可访问 `http://127.0.0.1:8000/docs`。若本仓库的容器配置与本文不同，以 `docker-compose.yml` 和服务日志为准。
 
+### 公共演示部署
+
+仓库根目录的 [`render.yaml`](render.yaml) 已为 Render Docker Web Service 准备好 Blueprint，Docker 镜像也会读取平台提供的 `PORT`。公共实例刻意将模型调用保持关闭，避免未鉴权公开接口消耗个人 API 额度；真实 DeepSeek 接入与评测证据保留在本仓库中。完整注册、部署和验收步骤见 [公共演示部署说明](docs/deployment.md)。
+
 ## 主要 API（v1）
 
 | 方法 | 路径 | 用途 |
