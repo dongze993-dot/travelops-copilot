@@ -6,9 +6,9 @@
 | --- | --- | --- | --- | --- |
 | Docker Web Service | `render.yaml` / `Dockerfile` | 当前 Python、FastAPI、LangGraph 与 SQLite 模拟工单 | 完整 HTTP API、`/docs`、公开模式下的工单关闭边界 | 真实 CRM、实时旅游数据、公开模型调用 |
 | 浏览器静态预览 | `render-static.yaml` | 访问者浏览器中的确定性 JavaScript | 页面交互、合成检索、预算与引用展示 | HTTP API、Python、LangGraph、SQLite、DeepSeek |
-| Netlify Functions API 演示 | `netlify.toml` | 静态前端 + Node.js Serverless Functions | 前端通过 HTTP 调用公开、无状态的合成 API | Python、FastAPI、LangGraph、SQLite、DeepSeek、`/docs` |
+| Netlify Functions API 演示 | `netlify.toml` | 静态前端 + Node.js Serverless Functions | 前端通过 HTTP 调用合成 API；可选 v3 联网来源检索 | Python、FastAPI、LangGraph、SQLite、DeepSeek、`/docs` |
 
-三个形态都只使用仓库中的合成数据。它们都不是订票、支付、CRM 或真实旅游信息服务。
+Docker 与静态预览只使用仓库中的合成数据。Netlify 的 v1/v2 同样如此；只有在管理员显式配置 Tavily Key 后，v3 才会临时查询网页来源。任何形态都不是订票、支付、CRM 或经核验的真实旅游信息服务。
 
 ## Docker Web Service 的部署范围
 
@@ -32,7 +32,7 @@ Render 从 Git 仓库构建 Docker 镜像并为 Web Service 提供公开子域�
 
 ## Netlify Functions API 演示
 
-Netlify 不是本项目 Python/FastAPI 服务的运行环境。本仓库的 [`netlify.toml`](../netlify.toml) 会构建一个静态前端，并把 `netlify/functions/` 中的 Node.js 函数映射为公开 API。函数只读取仓库内的合成景点 JSON 并执行确定性规则；没有模型供应商请求、没有 SQLite，也没有模拟工单持久化。
+Netlify 不是本项目 Python/FastAPI 服务的运行环境。本仓库的 [`netlify.toml`](../netlify.toml) 会构建一个静态前端，并把 `netlify/functions/` 中的 Node.js 函数映射为公开 API。v1/v2 只读取仓库内的合成景点 JSON 并执行确定性规则；v3 是独立、显式开启的网页检索适配层。整个 Netlify 形态没有模型供应商请求、没有 SQLite，也没有模拟工单持久化。
 
 ### 在 Netlify 创建站点
 
@@ -46,9 +46,9 @@ Netlify 不是本项目 Python/FastAPI 服务的运行环境。本仓库的 [`ne
 | Build command | `node scripts/build_netlify_demo.mjs` |
 | Publish directory | `dist-netlify-demo` |
 | Functions directory | `netlify/functions`（由 `netlify.toml` 设置） |
-| Environment variables | 不添加任何 UI 环境变量 |
+| Environment variables | 初次部署不添加；只有启用 v3 时才按下文添加 Tavily 变量 |
 
-4. 不要填入 `DEEPSEEK_API_KEY`、模型名、SQLite 路径或任何个人数据。此适配层固定关闭模型调用；
+4. 不要填入 `DEEPSEEK_API_KEY`、模型名、SQLite 路径或任何个人数据。此适配层固定关闭模型调用；联网检索也先保持关闭，待私有验收时再按 [联网检索说明](live-retrieval.md) 添加 Tavily 变量；
 5. 点击部署，等待构建完成。部署成功后站点地址通常形如 `https://<site-name>.netlify.app/`。
 
 本仓库的发布目录不是常见的 `_site`、`dist` 或 `public`。必须使用 `dist-netlify-demo`，因为构建脚本会把前端资源复制并重写为 Netlify 可发布的相对路径。`netlify/functions` 是函数源码目录，不是静态网页的发布目录。
@@ -63,9 +63,11 @@ Netlify 不是本项目 Python/FastAPI 服务的运行环境。本仓库的 [`ne
 | `GET` | `/api/v1/attractions` | 使用 `destination`、可选 `interests` 和 `limit` 查询合成数据 |
 | `POST` | `/api/v1/plans` | 返回确定性行程、预算、引用和 Netlify Function 执行轨迹 |
 | `POST` | `/api/v2/plans` | 返回同一确定性结果，并含 `generation.mode: "deterministic_fallback"`、`fallback_code: "llm_disabled"` |
+| `GET` | `/api/v3/live-attractions` | 只读的联网来源检索；默认 `503 live_retrieval_not_configured`，配置后返回可打开来源与获取时间 |
+| `POST` | `/api/v3/live-plans` | 用同次联网来源组织候选日程；拒绝备注/建单，不把摘要伪装成价格或可订性 |
 | `GET` / `POST` | `/api/v1/tickets`、`/api/v1/tickets/*` | 固定返回 `403`，不读写工单 |
 
-`/api/plan` 是 v1 规划接口的兼容路径；`/api/tickets` 与 `/api/tickets/*` 是工单关闭边界的兼容路径。页面在读取 `/health` 后会显示“Netlify API 公开演示”，隐藏模型和工单入口，也不会发送备注字段。不要把这个适配层称为 FastAPI、LangGraph 或 DeepSeek 的线上部署。
+`/api/plan` 是 v1 规划接口的兼容路径；`/api/tickets` 与 `/api/tickets/*` 是工单关闭边界的兼容路径。页面在读取 `/health` 后会隐藏模型和工单入口，也不会发送备注字段。若 `live_retrieval.enabled=true`，页面会显示可关闭的“联网检索公开网页来源”开关；未配置时会明确禁用它，而不是把合成结果标作联网。不要把这个适配层称为 FastAPI、LangGraph 或 DeepSeek 的线上部署。
 
 ### Netlify 部署后验收
 
@@ -101,6 +103,25 @@ curl.exe -i https://<site>.netlify.app/api/v1/tickets
 ```
 
 第一条应返回 `200`，且 `generation` 明确为 `deterministic_fallback` / `llm_disabled`；第二条应返回 `403`。打开首页后，确认页面顶部标明 Netlify API 公开演示。`/docs` 不属于此部署形态；需要 OpenAPI 页面、原始 Python 工作流或本地模型评测时，请运行 Docker Web Service 或本机服务。
+
+### 启用并验收联网检索（先保持 Private）
+
+当 v1/v2 已部署成功后，仍先把站点保持为 Private。注册 Tavily 并获取项目专用 Key 后，在 **Project configuration → Environment variables** 新增：
+
+| Key | Value |
+| --- | --- |
+| `TAVILY_API_KEY` | 仅填在 Netlify UI 中的真实 Key |
+| `TRAVELOPS_LIVE_RETRIEVAL_ENABLED` | `true` |
+
+保存并重新部署。不要把 Key 发到聊天、写进 GitHub、`netlify.toml`、截图或浏览器端代码。再次访问 `/health`，预期看到 `live_retrieval.enabled: true`，但不应看到 Key。然后用不含任何个人信息的城市名称验收：
+
+```bash
+curl.exe -sS "https://<site>.netlify.app/api/v3/live-attractions?destination=上饶&interests=自然,文化&limit=6"
+
+curl.exe -sS -X POST "https://<site>.netlify.app/api/v3/live-plans" -H "content-type: application/json" -d '{"destination":"上饶","days":2,"travelers":2,"total_budget_cny":2400,"interests":["自然","文化"],"travel_style":"balanced"}'
+```
+
+检查每条 citation 都有可打开的 `https` URL、`retrieved_at` 与网页检索提示；检查预算显示为“预算上限/分配框架”，不是实时价格。每个 v3 函数都配置为 `3 次 / 分钟 / IP`，来源 GET 路径有 5 分钟 CDN 缓存，但这不是全站严格额度保护。公开前的限流、额度和真实验收边界见 [联网检索说明](live-retrieval.md)。
 
 ## Render Static Site：浏览器内确定性预览
 
