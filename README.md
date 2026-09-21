@@ -36,7 +36,7 @@
 | 工作流 | LangGraph `StateGraph` | 显式状态、分支、一次受控修订和执行轨迹 |
 | 模型适配（v2 可选） | DeepSeek Chat Completions HTTP API、JSON 输出、版本化提示词 | 真实 API 对接、结构化输出、token/延迟元数据、失败降级 |
 | 知识层 | 本地 JSON、可追溯的合成来源 ID | 受控检索、来源返回与空覆盖降级 |
-| 联网检索（Netlify v3 可选） | Tavily Search API、服务端来源清洗、短时缓存与函数限流 | 外部 API 对接、来源 URL/获取时间、敏感字段最小化与 fail-closed |
+| 联网检索（Netlify v3 可选） | Tavily Search API、服务端来源清洗、短时缓存、函数限流与 Blobs 固定槽位日额度 | 外部 API 对接、来源 URL/获取时间、敏感字段最小化、额度保护与 fail-closed |
 | 集成模拟 | SQLite 模拟 CRM 工单 | 创建/查询接口、字段映射、人工跟进边界 |
 | 交付 | Docker Compose、健康检查、README、API 文档 | 可本地复现的 PoC 交付 |
 | 质量 | HTTP 黑盒评测、版本化 JSONL 用例 | 从公开接口验证，不依赖内部函数 |

@@ -53,7 +53,7 @@ Netlify 不是本项目 Python/FastAPI 服务的运行环境。本仓库的 [`ne
 
 本仓库的发布目录不是常见的 `_site`、`dist` 或 `public`。必须使用 `dist-netlify-demo`，因为构建脚本会把前端资源复制并重写为 Netlify 可发布的相对路径。`netlify/functions` 是函数源码目录，不是静态网页的发布目录。
 
-根目录 `netlify.toml` 还会固定 `NODE_VERSION=22` 与 `PYTHON_VERSION=3.12`。后者不是模型或数据库配置：仓库同时保留完整 Python 应用的 `requirements.txt`，Netlify 会在构建前识别它并准备依赖；固定到已验证的 Python 3.12 可避免不兼容版本触发 `pydantic-core` 的 Rust 源码编译。它们是公开、非敏感的构建版本设置，不需要在 Netlify 表单中手工添加。
+根目录 `netlify.toml` 还会固定 `NODE_VERSION=22.12.0` 与 `PYTHON_VERSION=3.12`。Node 的精确下限满足 `@netlify/blobs` 11.x 的运行要求；后者不是模型或数据库配置：仓库同时保留完整 Python 应用的 `requirements.txt`，Netlify 会在构建前识别它并准备依赖；固定到已验证的 Python 3.12 可避免不兼容版本触发 `pydantic-core` 的 Rust 源码编译。它们是公开、非敏感的构建版本设置，不需要在 Netlify 表单中手工添加。
 
 ### Netlify API 范围
 
@@ -112,6 +112,7 @@ curl.exe -i https://<site>.netlify.app/api/v1/tickets
 | --- | --- |
 | `TAVILY_API_KEY` | 仅填在 Netlify UI 中的真实 Key |
 | `TRAVELOPS_LIVE_RETRIEVAL_ENABLED` | `true` |
+| `TRAVELOPS_LIVE_RETRIEVAL_DAILY_QUOTA` | `15`（可选；建议初次验收保持默认） |
 
 保存并重新部署。不要把 Key 发到聊天、写进 GitHub、`netlify.toml`、截图或浏览器端代码。再次访问 `/health`，预期看到 `live_retrieval.enabled: true`，但不应看到 Key。然后用不含任何个人信息的城市名称验收：
 
@@ -121,7 +122,7 @@ curl.exe -sS "https://<site>.netlify.app/api/v3/live-attractions?destination=上
 curl.exe -sS -X POST "https://<site>.netlify.app/api/v3/live-plans" -H "content-type: application/json" -d '{"destination":"上饶","days":2,"travelers":2,"total_budget_cny":2400,"interests":["自然","文化"],"travel_style":"balanced"}'
 ```
 
-检查每条 citation 都有可打开的 `https` URL、`retrieved_at` 与网页检索提示；检查预算显示为“预算上限/分配框架”，不是实时价格。每个 v3 函数都配置为 `3 次 / 分钟 / IP`，来源 GET 路径有 5 分钟 CDN 缓存，但这不是全站严格额度保护。公开前的限流、额度和真实验收边界见 [联网检索说明](live-retrieval.md)。
+检查每条 citation 都有可打开的 `https` URL、`retrieved_at` 与网页检索提示；检查预算显示为“预算上限/分配框架”，不是实时价格。每个 v3 函数都配置为 `3 次 / 分钟 / IP`，来源 GET 路径有 5 分钟 CDN 缓存，缓存未命中时还会先占用 Netlify Blobs 的固定日额度槽位（默认 `15`）。这是一层保守的可用性保护，不是严格的付费额度保证；公开前的完整边界见 [联网检索说明](live-retrieval.md)。
 
 ## Render Static Site：浏览器内确定性预览
 

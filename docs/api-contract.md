@@ -248,6 +248,8 @@ v2 使用与 `POST /api/v1/plans` 相同的请求体和确定性规划基础，�
 
 该 GET 路径只包含查询参数，可能有短时 CDN 缓存；不要在 query 中放个人信息。
 
+每个实际出站的缓存未命中请求会先占用一个 Netlify Blobs 的固定日额度槽位（默认 15）。额度已满返回 `429 live_search_demo_quota_exhausted`；存储保护不可用时返回 `503 live_search_quota_unavailable`，两种情形都不会调用外部搜索提供方。它是保守的演示可用性保护，不是付费/财务硬额度保证。
+
 ## `POST /api/v3/live-plans`
 
 使用与 v1 相同的必填规划字段：`destination`、`days`、`travelers`、`total_budget_cny`。可选字段为 `start_date`、`interests` 和 `travel_style`。它额外遵守以下数据最小化边界：

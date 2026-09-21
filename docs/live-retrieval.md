@@ -69,6 +69,7 @@ DeepSeek 在本项目中是可选的文本生成提供方，不是通用网页�
 | `TRAVELOPS_LIVE_RETRIEVAL_TIMEOUT_MS` | `4000` |
 | `TRAVELOPS_LIVE_RETRIEVAL_MAX_RESULTS` | `6` |
 | `TRAVELOPS_LIVE_RETRIEVAL_CACHE_TTL_SECONDS` | `600` |
+| `TRAVELOPS_LIVE_RETRIEVAL_DAILY_QUOTA` | `15` |
 
 保存变量后必须触发一次新的 Netlify Deploy，函数才能读取新值。Netlify 的函数环境变量说明见 [官方文档](https://docs.netlify.com/build/functions/environment-variables/)。部署成功后：
 
@@ -81,16 +82,18 @@ curl.exe -sS "https://<你的站点>.netlify.app/api/v3/live-attractions?destina
 
 ## 公开前的额度与安全边界
 
-每个 v3 函数配置了 Netlify 的 `3 次 / 分钟 / IP` 限流；查询来源的 `GET` 路径也使用 5 分钟 CDN 缓存。这能降低重复点击和普通滥用，但**不是**严格的全站额度上限：免费站点上的 IP 限流可能有短暂传播延迟，也无法阻止大量不同 IP 消耗 Key 额度。Netlify 的适用范围与限制见 [函数限流文档](https://docs.netlify.com/manage/security/secure-access-to-sites/rate-limiting/) 和 [缓存文档](https://docs.netlify.com/build/caching/caching-overview/)。
+每个 v3 函数配置了 Netlify 的 `3 次 / 分钟 / IP` 限流；查询来源的 `GET` 路径也使用 5 分钟 CDN 缓存。每次实际出站的缓存未命中查询还会先在 Netlify Blobs 中占用一个当日固定槽位，默认每天最多 `15` 个槽位。槽位仅记录 UTC 日期、槽号和预留时间，不记录城市、偏好、Key 或访问者信息；存储不可用或返回不安全的条件写入结果时，会 fail closed，不调用 Tavily。
+
+这三层措施能降低重复点击和普通滥用，但仍**不是**严格的财务/付费 API 硬上限：函数 IP 限流可能有短暂传播延迟，Blobs 也不是事务型计费系统，Tavily 侧账户额度才是最终的供应商限制。Netlify 的适用范围与限制见 [函数限流文档](https://docs.netlify.com/manage/security/secure-access-to-sites/rate-limiting/)、[缓存文档](https://docs.netlify.com/build/caching/caching-overview/) 和 [Blobs 文档](https://docs.netlify.com/build/data-and-storage/netlify-blobs/)。
 
 因此，当前推荐流程是：
 
 1. 先私有部署并用“上饶”等真实城市验收；
 2. 记录一次去敏后的手工验收（日期、城市、来源条数、延迟、对应 commit）；
-3. 若要公开给更多访问者，再加入持久化的全站日/月额度控制，例如 Netlify Blobs 或独立限流服务；
-4. 只有确认额度和公开范围后，才把 Netlify 站点改为 Public。
+3. 在 Tavily 后台确认自己的免费/付费额度和告警设置，再按访问量调整 `TRAVELOPS_LIVE_RETRIEVAL_DAILY_QUOTA`；
+4. 只有确认额度、公开范围和网页核验提示都符合预期后，才把 Netlify 站点改为 Public。
 
-Netlify Blobs 可在 Functions 中持久化少量去敏缓存/额度计数，见 [Netlify Blobs 文档](https://docs.netlify.com/build/data-and-storage/netlify-blobs/)。它是下一阶段的增强项；在没有完成全站额度控制前，不应把个人付费 Key 当作无限制的公共服务 Key。
+固定槽位不会在供应商失败后归还，避免并发释放导致超额；因此偶发失败也会占一个当天槽位。这是刻意采取的“宁可少服务、不超量调用”的演示安全取舍。
 
 ## 离线验证
 

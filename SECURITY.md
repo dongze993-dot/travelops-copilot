@@ -41,8 +41,10 @@ then arrange a private follow-up.
 - v3 returns only a sanitized `https` URL, title, short snippet and retrieval
   time. It never treats a search result as verified price, opening hours,
   routing, booking availability, or safety information.
-- v3 functions have a conservative per-IP Netlify rate limit and short cache,
-  but those controls are not a global quota or authentication system. Keep the
-  site private while testing a personal provider Key; add a durable global
-  quota/rate limit before making live retrieval broadly public.
+- v3 functions have a conservative per-IP Netlify rate limit, short cache and
+  a Blobs-backed fixed daily-slot guard. The guard records no query or identity
+  data and fails closed if its conditional write is uncertain. It is still not
+  a financial-spend guarantee or authentication system: keep the site private
+  while testing a personal provider Key and confirm provider-side quotas before
+  broad public sharing.
 - This proof of concept is not a booking, medical, payment, or identity system.
