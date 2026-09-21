@@ -72,6 +72,8 @@ docker compose up --build
 
 仓库根目录的 [`render.yaml`](render.yaml) 已为 Render Docker Web Service 准备好 Blueprint，Docker 镜像也会读取平台提供的 `PORT`。公共实例刻意将模型调用保持关闭，并启用 `TRAVELOPS_PUBLIC_DEMO_MODE=true`，避免未鉴权公开接口消耗个人 API 额度或写入工单内容；真实 DeepSeek 接入与评测证据保留在本仓库中。完整注册、部署和验收步骤见 [公共演示部署说明](docs/deployment.md)。
 
+如果托管平台只提供静态站点，可使用独立的 [`render-static.yaml`](render-static.yaml)。它构建一个**浏览器内确定性预览**：只加载本仓库的合成 JSON，在访问者浏览器内生成结果；它不运行 FastAPI、LangGraph、DeepSeek 或 SQLite 模拟工单。该部署形式适合演示页面交互，不应描述为完整后端的线上运行。
+
 ## 主要 API（v1）
 
 | 方法 | 路径 | 用途 |

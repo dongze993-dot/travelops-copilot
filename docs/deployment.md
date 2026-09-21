@@ -22,6 +22,24 @@
 
 Render 从 Git 仓库构建 Docker 镜像并为 Web Service 提供公开子域名；服务必须绑定到 `0.0.0.0` 和平台提供的端口。当前 Dockerfile 已兼容 `PORT` 环境变量。详见 [Render Web Services 文档](https://render.com/docs/web-services) 与 [Render Blueprint 规范](https://render.com/docs/blueprint-spec)。
 
+## Render Static Site：浏览器内确定性预览
+
+如果账户无法创建 Web Service，也可以部署根目录的 `render-static.yaml` 对应的静态版本。它是一个真实可交互的网页，但工作发生在访问者浏览器内：网页只加载仓库中的合成景点 JSON，并在本地执行确定性检索、预算和一次受控修订。它**不**运行 FastAPI、LangGraph、DeepSeek、SQLite 或模拟工单接口。
+
+在 Render 选择 **New → Static Site** 后填写：
+
+| 字段 | 填写值 |
+| --- | --- |
+| Source repository | `dongze993-dot/travelops-copilot` |
+| Name | `travelops-static-demo-dongze` |
+| Branch | `main` |
+| Root Directory | 留空 |
+| Build Command | `node scripts/build_static_demo.mjs` |
+| Publish Directory | `dist-static-demo` |
+| Environment Variables | 不添加 |
+
+部署完成后，页面顶部会显示“静态浏览器演示”，并明确说明不应输入个人信息。工单、模型开关和补充说明输入均会隐藏；未知城市不会借用其他城市的条目，也不会伪造引用。若需要验证完整 HTTP API、LangGraph 或本地可选模型路径，请使用前一节的 Docker Web Service 或本机运行方式。
+
 ## 上线验收记录模板
 
 部署后，在 GitHub 新增一笔只包含真实信息的提交或 issue，记录：
