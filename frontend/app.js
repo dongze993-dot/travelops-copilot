@@ -8,6 +8,7 @@
     modelPlan: "/api/v2/plans",
     tickets: "/api/v1/tickets",
   };
+  const isStaticBrowserDemo = window.TRAVELOPS_STATIC_DEMO === true;
 
   const planForm = document.querySelector("#plan-form");
   const ticketForm = document.querySelector("#ticket-form");
@@ -76,12 +77,31 @@
     return body;
   }
 
+  async function staticDemoAdapter() {
+    if (!isStaticBrowserDemo) return null;
+    const readiness = window.TravelOpsStaticDemoReady;
+    if (readiness && typeof readiness.then === "function") await readiness;
+    if (!window.TravelOpsStaticDemo) {
+      throw new Error("静态浏览器演示未能加载本地资料适配器，请刷新页面后重试。");
+    }
+    return window.TravelOpsStaticDemo;
+  }
+
   async function postJson(url, payload) {
+    const staticDemo = await staticDemoAdapter();
+    if (staticDemo) return staticDemo.postJson(url, payload);
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify(payload),
     });
+    return parseResponse(response);
+  }
+
+  async function getJson(url) {
+    const staticDemo = await staticDemoAdapter();
+    if (staticDemo) return staticDemo.getJson(url);
+    const response = await fetch(url, { headers: { Accept: "application/json" } });
     return parseResponse(response);
   }
 
@@ -93,13 +113,26 @@
     handoffCard.hidden = true;
     handoffCapability.hidden = true;
     publicDemoNotice.hidden = false;
+    if (isStaticBrowserDemo) {
+      useModelEnhancement.checked = false;
+      useModelEnhancement.disabled = true;
+      useModelEnhancement.closest(".model-option").hidden = true;
+      document.querySelector("#notes").closest(".notes-field").hidden = true;
+      document.querySelector("#trace-heading").textContent = "浏览器计算步骤";
+      publicDemoNotice.innerHTML = "<strong>静态浏览器演示：</strong>结果仅由本页加载的合成资料与确定性规则生成，不运行 FastAPI、LangGraph、模型或 CRM；请勿输入个人信息。";
+      environmentLabel.textContent = "静态浏览器演示";
+      return;
+    }
     environmentLabel.textContent = "公开演示环境";
   }
 
   async function detectPublicDemoMode() {
+    if (isStaticBrowserDemo) {
+      enablePublicDemoMode();
+      return;
+    }
     try {
-      const response = await fetch("/health", { headers: { Accept: "application/json" } });
-      const health = await parseResponse(response);
+      const health = await getJson("/health");
       if (health.public_demo_mode === true) enablePublicDemoMode();
     } catch {
       // A failed status probe must not pretend the current host is public.
@@ -127,7 +160,7 @@
       total_budget_cny: Number(document.querySelector("#total-budget").value),
       interests,
       travel_style: document.querySelector('input[name="travel_style"]:checked').value,
-      notes: document.querySelector("#notes").value.trim() || undefined,
+      notes: isStaticBrowserDemo ? undefined : document.querySelector("#notes").value.trim() || undefined,
       create_follow_up_ticket: !isPublicDemo && createFollowUpTicket.checked,
     };
   }
@@ -207,6 +240,7 @@
       invalid_provider_json: "模型输出格式未通过校验，已保留确定性方案。",
       truncated_provider_response: "模型输出不完整，已保留确定性方案。",
       untrusted_provider_output: "模型输出未通过来源校验，已保留确定性方案。",
+      static_demo_no_model: "静态公开演示不调用模型，已返回浏览器内确定性预览。",
     };
     return messages[code] || "未采用模型说明，已保留确定性方案。";
   }

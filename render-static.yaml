@@ -1,0 +1,8 @@
+# Optional browser-only public demonstration. This is intentionally separate
+# from render.yaml, which deploys the full Docker/FastAPI application.
+services:
+  - type: web
+    name: travelops-static-demo-dongze
+    runtime: static
+    buildCommand: node scripts/build_static_demo.mjs
+    staticPublishPath: ./dist-static-demo

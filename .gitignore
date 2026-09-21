@@ -16,6 +16,9 @@ runtime/
 coverage.xml
 htmlcov/
 
+# Generated browser-only public demo artifact
+dist-static-demo/
+
 # Secrets: commit only the documented template below.
 .env
 .env.*
