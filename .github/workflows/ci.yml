@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  static-public-demo:
-    name: Static public-demo build
+  public-demo-adapters:
+    name: Public demo adapter checks
     runs-on: ubuntu-latest
     steps:
       - name: Check out source
@@ -19,8 +19,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Test browser-only planner
-        run: node --test tests/static_demo.test.mjs
+      - name: Test public demo adapters
+        run: node --test tests/static_demo.test.mjs tests/netlify_api.test.mjs
       - name: Build static public artifact
         shell: bash
         run: |
@@ -33,6 +33,18 @@ jobs:
           test -f dist-static-demo/data/attractions.json
           ! grep --fixed-strings --quiet '/frontend/' dist-static-demo/index.html
           ! grep --recursive --fixed-strings --quiet 'DEEPSEEK_API_KEY' dist-static-demo
+      - name: Build Netlify API demo artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/build_netlify_demo.mjs
+          test -f dist-netlify-demo/index.html
+          test -f dist-netlify-demo/styles.css
+          test -f dist-netlify-demo/app.js
+          test -f netlify.toml
+          ! grep --fixed-strings --quiet '/frontend/' dist-netlify-demo/index.html
+          ! grep --fixed-strings --quiet 'TRAVELOPS_STATIC_DEMO' dist-netlify-demo/index.html
+          ! grep --recursive --fixed-strings --quiet 'DEEPSEEK_API_KEY' dist-netlify-demo
 
   test:
     name: Python ${{ matrix.python-version }}

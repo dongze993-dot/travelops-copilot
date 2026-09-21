@@ -74,6 +74,18 @@ docker compose up --build
 
 如果托管平台只提供静态站点，可使用独立的 [`render-static.yaml`](render-static.yaml)。它构建一个**浏览器内确定性预览**：只加载本仓库的合成 JSON，在访问者浏览器内生成结果；它不运行 FastAPI、LangGraph、DeepSeek 或 SQLite 模拟工单。该部署形式适合演示页面交互，不应描述为完整后端的线上运行。
 
+也可以使用根目录的 [`netlify.toml`](netlify.toml) 部署 **Netlify Functions API 演示**。它会构建静态前端，并提供下列无服务器 HTTP 路由：
+
+| 路由 | Netlify 演示行为 |
+| --- | --- |
+| `GET /health` | 返回公开演示状态、合成资料条数和 `deployment: "netlify_functions"` |
+| `GET /api/v1/attractions` | 查询同一份合成景点 JSON |
+| `POST /api/v1/plans` | 返回确定性行程、预算、引用和执行轨迹 |
+| `POST /api/v2/plans` | 返回确定性结果，并明确标记 `llm_disabled` 降级 |
+| `/api/v1/tickets` 与兼容旧路径 | 固定返回 `403`，不写入任何工单 |
+
+Netlify 版本**不是**当前 Python/FastAPI/LangGraph 服务的原样运行：它不启动 Python、LangGraph、SQLite、DeepSeek，也不提供 `/docs`。它仅复用受控合成数据和确定性规划规则，方便验证前端与 JSON API 的对接边界；不需要、也不应配置 DeepSeek API Key。选择、部署和验收的精确步骤见 [Netlify Functions API 演示](docs/deployment.md#netlify-functions-api-演示)。
+
 ## 主要 API（v1）
 
 | 方法 | 路径 | 用途 |
@@ -154,6 +166,7 @@ app/                 # 服务与工作流实现
 data/                # 原创合成知识数据及来源/使用说明
 docs/                # 架构、API、指标与演示文档
 evals/               # 版本化评测用例
+netlify/             # Netlify Functions API 演示适配层（不运行 Python 服务）
 scripts/             # 不依赖内部实现的 HTTP 评测工具
 tests/               # 自动化测试（如有）
 ```
