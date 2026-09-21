@@ -1,0 +1,11 @@
+# Netlify deploys a static frontend plus deterministic serverless API adapters.
+# The canonical Python/FastAPI/LangGraph application remains available locally
+# and through the Docker configuration; this file does not run it on Netlify.
+[build]
+  command = "node scripts/build_netlify_demo.mjs"
+  publish = "dist-netlify-demo"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+  included_files = ["data/attractions.json"]

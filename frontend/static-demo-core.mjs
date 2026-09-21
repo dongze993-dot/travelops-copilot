@@ -1,5 +1,5 @@
 /**
- * Browser-only deterministic planner used by the optional static public demo.
+ * Shared deterministic planner used by the optional public demonstrations.
  *
  * This module deliberately has no provider, ticket, storage, or network API
  * dependency.  The adapter supplies only the checked-in synthetic catalogue.
@@ -218,21 +218,41 @@ function trace(step, detail, warning = false) {
   return { step, status: warning ? "warning" : "completed", detail };
 }
 
-function staticPlanId(request) {
+function deterministicPlanId(request, prefix) {
   const text = JSON.stringify(request);
   let hash = 2166136261;
   for (const character of text) {
     hash ^= character.charCodeAt(0);
     hash = Math.imul(hash, 16777619);
   }
-  return `STATIC-DEMO-${(hash >>> 0).toString(36).toUpperCase().padStart(6, "0")}`;
+  return `${prefix}-${(hash >>> 0).toString(36).toUpperCase().padStart(6, "0")}`;
+}
+
+function executionCopy(execution) {
+  if (execution === "netlify_function") {
+    return {
+      idPrefix: "NETLIFY-API",
+      location: "Netlify Function",
+      plan: "已在 Netlify Function 中生成初版日程和逐项预算估算。",
+      revision: "已按低价点位和 budget 示例标准完成唯一一次 Netlify Function 修订。",
+      finalize: "已输出 Netlify Function 确定性 API 方案；未调用模型、工单或 FastAPI。",
+    };
+  }
+  return {
+    idPrefix: "STATIC-DEMO",
+    location: "浏览器内",
+    plan: "已在浏览器内生成初版日程和逐项预算估算。",
+    revision: "已按低价点位和 budget 示例标准完成唯一一次浏览器内修订。",
+    finalize: "已输出浏览器内确定性预览；未调用模型、工单或后端 API。",
+  };
 }
 
 /** Build a response compatible with the existing plan renderer. */
-export function buildStaticPlan(payload, catalogue) {
+export function buildDeterministicPlan(payload, catalogue, { execution = "browser" } = {}) {
   const request = normaliseRequest(payload);
+  const copy = executionCopy(execution);
   const traceEntries = [
-    trace("parse", `已在浏览器内标准化 ${request.destination || "未填写目的地"}、${request.days} 天、${request.travelers} 位旅客的需求。`),
+    trace("parse", `已在 ${copy.location} 标准化 ${request.destination || "未填写目的地"}、${request.days} 天、${request.travelers} 位旅客的需求。`),
   ];
   const retrieved = searchAttractions(catalogue, request.destination, request.interests, Math.max(4, request.days * 3));
   const citations = citationsFor(retrieved, request.interests);
@@ -254,7 +274,7 @@ export function buildStaticPlan(payload, catalogue) {
     days: request.days,
     revisionCount: 0,
   });
-  traceEntries.push(trace("plan", "已在浏览器内生成初版日程和逐项预算估算。"));
+  traceEntries.push(trace("plan", copy.plan));
   traceEntries.push(trace(
     "validate",
     validation.passed ? "预算与日程覆盖校验通过。" : "发现需要人工确认的预算或资料覆盖问题。",
@@ -275,14 +295,14 @@ export function buildStaticPlan(payload, catalogue) {
     });
     traceEntries.push(trace(
       "revise_once",
-      "已按低价点位和 budget 示例标准完成唯一一次浏览器内修订。",
+      copy.revision,
       !validation.passed,
     ));
   }
 
-  traceEntries.push(trace("finalize", "已输出浏览器内确定性预览；未调用模型、工单或后端 API。"));
+  traceEntries.push(trace("finalize", copy.finalize));
   return {
-    plan_id: staticPlanId(request),
+    plan_id: deterministicPlanId(request, copy.idPrefix),
     request_summary: {
       destination: request.destination,
       days: request.days,
@@ -298,6 +318,11 @@ export function buildStaticPlan(payload, catalogue) {
     workflow_trace: traceEntries,
     ticket: null,
   };
+}
+
+/** Browser-only wrapper retained for the static public build. */
+export function buildStaticPlan(payload, catalogue) {
+  return buildDeterministicPlan(payload, catalogue, { execution: "browser" });
 }
 
 function staticDemoError(message, status = 400) {

@@ -105,7 +105,7 @@
     return parseResponse(response);
   }
 
-  function enablePublicDemoMode() {
+  function enablePublicDemoMode(health = {}) {
     isPublicDemo = true;
     createFollowUpTicket.checked = false;
     createFollowUpTicket.disabled = true;
@@ -113,14 +113,24 @@
     handoffCard.hidden = true;
     handoffCapability.hidden = true;
     publicDemoNotice.hidden = false;
+    document.querySelector("#notes").closest(".notes-field").hidden = true;
     if (isStaticBrowserDemo) {
       useModelEnhancement.checked = false;
       useModelEnhancement.disabled = true;
       useModelEnhancement.closest(".model-option").hidden = true;
-      document.querySelector("#notes").closest(".notes-field").hidden = true;
       document.querySelector("#trace-heading").textContent = "浏览器计算步骤";
       publicDemoNotice.innerHTML = "<strong>静态浏览器演示：</strong>结果仅由本页加载的合成资料与确定性规则生成，不运行 FastAPI、LangGraph、模型或 CRM；请勿输入个人信息。";
       environmentLabel.textContent = "静态浏览器演示";
+      return;
+    }
+    if (health.model_calls_enabled === false) {
+      useModelEnhancement.checked = false;
+      useModelEnhancement.disabled = true;
+      useModelEnhancement.closest(".model-option").hidden = true;
+    }
+    if (health.deployment === "netlify_functions") {
+      publicDemoNotice.innerHTML = "<strong>Netlify API 公开演示：</strong>页面请求由 Serverless Function 返回合成数据的确定性结果；不运行 FastAPI、LangGraph、DeepSeek 或 CRM，且已关闭模型与工单。请勿输入个人信息。";
+      environmentLabel.textContent = "Netlify API 演示";
       return;
     }
     environmentLabel.textContent = "公开演示环境";
@@ -133,7 +143,7 @@
     }
     try {
       const health = await getJson("/health");
-      if (health.public_demo_mode === true) enablePublicDemoMode();
+      if (health.public_demo_mode === true) enablePublicDemoMode(health);
     } catch {
       // A failed status probe must not pretend the current host is public.
     }
@@ -160,7 +170,7 @@
       total_budget_cny: Number(document.querySelector("#total-budget").value),
       interests,
       travel_style: document.querySelector('input[name="travel_style"]:checked').value,
-      notes: isStaticBrowserDemo ? undefined : document.querySelector("#notes").value.trim() || undefined,
+      notes: isPublicDemo ? undefined : document.querySelector("#notes").value.trim() || undefined,
       create_follow_up_ticket: !isPublicDemo && createFollowUpTicket.checked,
     };
   }
