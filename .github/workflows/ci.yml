@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: "22"
       - name: Test public demo adapters
-        run: node --test tests/static_demo.test.mjs tests/netlify_api.test.mjs
+        run: node --test tests/static_demo.test.mjs tests/netlify_api.test.mjs tests/live_retrieval.test.mjs
       - name: Build static public artifact
         shell: bash
         run: |
@@ -33,6 +33,7 @@ jobs:
           test -f dist-static-demo/data/attractions.json
           ! grep --fixed-strings --quiet '/frontend/' dist-static-demo/index.html
           ! grep --recursive --fixed-strings --quiet 'DEEPSEEK_API_KEY' dist-static-demo
+          ! grep --recursive --fixed-strings --quiet 'TAVILY_API_KEY' dist-static-demo
       - name: Build Netlify API demo artifact
         shell: bash
         run: |
@@ -45,6 +46,7 @@ jobs:
           ! grep --fixed-strings --quiet '/frontend/' dist-netlify-demo/index.html
           ! grep --fixed-strings --quiet 'TRAVELOPS_STATIC_DEMO' dist-netlify-demo/index.html
           ! grep --recursive --fixed-strings --quiet 'DEEPSEEK_API_KEY' dist-netlify-demo
+          ! grep --recursive --fixed-strings --quiet 'TAVILY_API_KEY' dist-netlify-demo
 
   test:
     name: Python ${{ matrix.python-version }}
