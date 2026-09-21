@@ -5,6 +5,14 @@
   command = "node scripts/build_netlify_demo.mjs"
   publish = "dist-netlify-demo"
 
+[build.environment]
+  # Netlify detects the canonical Python application before running the
+  # Node-only adapter build. Pin a supported interpreter so its automatic
+  # dependency preparation uses published pydantic-core wheels instead of
+  # attempting a Rust source build.
+  NODE_VERSION = "22"
+  PYTHON_VERSION = "3.12"
+
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"

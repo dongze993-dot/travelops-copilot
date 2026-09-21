@@ -46,12 +46,14 @@ Netlify 不是本项目 Python/FastAPI 服务的运行环境。本仓库的 [`ne
 | Build command | `node scripts/build_netlify_demo.mjs` |
 | Publish directory | `dist-netlify-demo` |
 | Functions directory | `netlify/functions`（由 `netlify.toml` 设置） |
-| Environment variables | 不添加 |
+| Environment variables | 不添加任何 UI 环境变量 |
 
 4. 不要填入 `DEEPSEEK_API_KEY`、模型名、SQLite 路径或任何个人数据。此适配层固定关闭模型调用；
 5. 点击部署，等待构建完成。部署成功后站点地址通常形如 `https://<site-name>.netlify.app/`。
 
 本仓库的发布目录不是常见的 `_site`、`dist` 或 `public`。必须使用 `dist-netlify-demo`，因为构建脚本会把前端资源复制并重写为 Netlify 可发布的相对路径。`netlify/functions` 是函数源码目录，不是静态网页的发布目录。
+
+根目录 `netlify.toml` 还会固定 `NODE_VERSION=22` 与 `PYTHON_VERSION=3.12`。后者不是模型或数据库配置：仓库同时保留完整 Python 应用的 `requirements.txt`，Netlify 会在构建前识别它并准备依赖；固定到已验证的 Python 3.12 可避免不兼容版本触发 `pydantic-core` 的 Rust 源码编译。它们是公开、非敏感的构建版本设置，不需要在 Netlify 表单中手工添加。
 
 ### Netlify API 范围
 

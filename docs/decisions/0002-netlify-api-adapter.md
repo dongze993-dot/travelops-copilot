@@ -15,11 +15,12 @@ TravelOps Copilot 的规范实现是 Python/FastAPI 服务：它通过 LangGraph
 
 1. 通过 `node scripts/build_netlify_demo.mjs` 构建静态前端，并发布 `dist-netlify-demo`；
 2. 将 `netlify/functions/` 作为 Node.js Serverless Functions 源码目录；
-3. 让函数复用仓库内的合成景点 JSON 和确定性规划规则；
-4. 暴露 `/health`、景点检索、v1 规划和 v2 规划路由；
-5. 固定关闭模型调用。v2 返回带 `llm_disabled` 的确定性降级元数据，而不是发送供应商请求；
-6. 固定拒绝所有模拟工单读写及自动建单请求，返回 `403`；
-7. 在 `/health` 标记 `public_demo_mode: true`、`deployment: "netlify_functions"` 和 `model_calls_enabled: false`，让前端和验收方识别该形态。
+3. 固定 Node.js 22 和 Python 3.12 作为非敏感构建版本。尽管公开适配层不运行 Python，仓库根目录仍保留完整应用的 `requirements.txt`，而 Netlify 会在构建准备阶段识别并安装这些依赖；
+4. 让函数复用仓库内的合成景点 JSON 和确定性规划规则；
+5. 暴露 `/health`、景点检索、v1 规划和 v2 规划路由；
+6. 固定关闭模型调用。v2 返回带 `llm_disabled` 的确定性降级元数据，而不是发送供应商请求；
+7. 固定拒绝所有模拟工单读写及自动建单请求，返回 `403`；
+8. 在 `/health` 标记 `public_demo_mode: true`、`deployment: "netlify_functions"` 和 `model_calls_enabled: false`，让前端和验收方识别该形态。
 
 此适配层不启动 Python、FastAPI、LangGraph 或 SQLite，也不提供 OpenAPI `/docs`。它是与完整应用并存的公开 API 演示，而不是替代实现或生产迁移。
 
