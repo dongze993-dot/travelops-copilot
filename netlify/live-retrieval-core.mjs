@@ -8,6 +8,8 @@
  * availability.
  */
 
+import { LiveQueryQuotaError, liveQueryQuotaConfig, reserveLiveSearchQuota } from "./live-query-quota.mjs";
+
 const TAVILY_SEARCH_URL = "https://api.tavily.com/search";
 const DEFAULT_TIMEOUT_MS = 4_000;
 const DEFAULT_MAX_RESULTS = 6;
@@ -139,11 +141,13 @@ export function liveRetrievalConfig(env = process.env) {
 /** A safe configuration projection suitable for the public /health route. */
 export function publicLiveRetrievalStatus(env = process.env) {
   const config = liveRetrievalConfig(env);
+  const quota = liveQueryQuotaConfig(env);
   return {
     enabled: config.enabled,
     mode: "live_web",
     provider: config.enabled ? "tavily" : null,
     credential_exposed_to_browser: false,
+    daily_query_quota: quota.dailyQuota,
     notes: config.enabled
       ? ["联网模式仅向检索服务发送目的地和选择的偏好；请勿输入个人信息。"]
       : ["联网检索尚未配置；当前仅可使用本地合成演示。"],
@@ -214,6 +218,7 @@ export async function retrieveLiveTravelSources(payload, {
   fetchImpl = globalThis.fetch,
   now = () => Date.now(),
   cache = processCache,
+  reserveQuota = reserveLiveSearchQuota,
 } = {}) {
   const config = liveRetrievalConfig(env);
   if (!config.enabled) {
@@ -233,6 +238,19 @@ export async function retrieveLiveTravelSources(payload, {
   const cached = cache.get(key);
   if (cached && nowMs - cached.storedAt < config.cacheTtlSeconds * 1_000) {
     return cachedResult(cached, nowMs);
+  }
+
+  try {
+    await reserveQuota({ env, now });
+  } catch (error) {
+    if (error instanceof LiveQueryQuotaError) {
+      throw new LiveRetrievalError(error.code, error.message, error.status);
+    }
+    throw new LiveRetrievalError(
+      "live_search_quota_unavailable",
+      "联网检索额度保护暂时不可用，为避免意外消耗额度已暂停请求。",
+      503,
+    );
   }
 
   const controller = new AbortController();
