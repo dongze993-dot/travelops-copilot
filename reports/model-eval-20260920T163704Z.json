@@ -1,0 +1,1356 @@
+{
+  "report_schema_version": "1",
+  "project": "TravelOps Copilot",
+  "generated_at_utc": "2026-09-20T16:37:04.681039+00:00",
+  "base_url": "http://127.0.0.1:8012",
+  "suite": "evals\\v2-llm.jsonl",
+  "suite_sha256": "0096a7e33f9cdf97e309425fe2e2ad3be1f0381cfead796a69830e0a8d510989",
+  "runner": {
+    "path": "scripts/run_model_eval.py",
+    "python": "3.11.9",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "http_black_box_only": true,
+    "require_llm": true
+  },
+  "summary": {
+    "selected_cases": 30,
+    "passed_cases": 30,
+    "failed_cases": 0,
+    "contract_and_grounding_pass_rate_percent": 100.0,
+    "eligible_model_cases": 18,
+    "llm_augmented_cases": 18,
+    "eligible_model_augmentation_rate_percent": 100.0,
+    "source_allowlist_and_day_coverage_valid_cases": 18,
+    "source_allowlist_and_day_coverage_rate_percent": 100.0,
+    "successful_request_latency_p50_ms": 4207.76,
+    "successful_request_latency_p95_ms": 6540.23,
+    "provider_latency_p50_ms": 4520.7,
+    "provider_latency_p95_ms": 6530.0,
+    "provider_usage_reported_cases": 18,
+    "provider_usage_prompt_tokens_total": 9932,
+    "provider_usage_completion_tokens_total": 4820,
+    "elapsed_ms": 86430.86
+  },
+  "models": {
+    "deepseek-flash": 18
+  },
+  "prompt_versions": {
+    "travelops-v2.0.0": 30
+  },
+  "fallback_codes": {
+    "validation_not_passed": 6,
+    "knowledge_empty": 6
+  },
+  "scope_note": "This evaluates structured model output, source allowlisting, and API behavior against repository-authored synthetic travel data. It does not measure real travel accuracy, provider quality beyond this prompt/suite, bookings, real CRM delivery, user outcomes, or cost.",
+  "results": [
+    {
+      "case_id": "V2-001",
+      "title": "杭州自然一日的模型说明",
+      "tags": [
+        "eligible",
+        "杭州",
+        "自然"
+      ],
+      "requires_model": true,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 4481.08,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "llm_augmented",
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": null,
+          "attempts": 1,
+          "llm_latency_ms": 4460.22,
+          "usage": {
+            "prompt_tokens": 561,
+            "completion_tokens": 222,
+            "total_tokens": 783
+          }
+        },
+        "validation": {
+          "passed": true,
+          "within_budget": true,
+          "coverage_ok": true,
+          "issues": [],
+          "revision_count": 0
+        },
+        "citation_source_ids": [
+          "syn-hz-001",
+          "syn-hz-002"
+        ],
+        "narrative_day_source_ids": [
+          [
+            "syn-hz-001",
+            "syn-hz-002"
+          ]
+        ]
+      }
+    },
+    {
+      "case_id": "V2-002",
+      "title": "杭州户外两日的模型说明",
+      "tags": [
+        "eligible",
+        "杭州",
+        "多天"
+      ],
+      "requires_model": true,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 4757.39,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "llm_augmented",
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": null,
+          "attempts": 1,
+          "llm_latency_ms": 4726.56,
+          "usage": {
+            "prompt_tokens": 584,
+            "completion_tokens": 271,
+            "total_tokens": 855
+          }
+        },
+        "validation": {
+          "passed": true,
+          "within_budget": true,
+          "coverage_ok": true,
+          "issues": [],
+          "revision_count": 0
+        },
+        "citation_source_ids": [
+          "syn-hz-002",
+          "syn-hz-001"
+        ],
+        "narrative_day_source_ids": [
+          [
+            "syn-hz-002"
+          ],
+          [
+            "syn-hz-001"
+          ]
+        ]
+      }
+    },
+    {
+      "case_id": "V2-003",
+      "title": "杭州三日预算型行程的模型说明",
+      "tags": [
+        "eligible",
+        "杭州",
+        "budget"
+      ],
+      "requires_model": true,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 6540.23,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "llm_augmented",
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": null,
+          "attempts": 1,
+          "llm_latency_ms": 6530.0,
+          "usage": {
+            "prompt_tokens": 623,
+            "completion_tokens": 386,
+            "total_tokens": 1009
+          }
+        },
+        "validation": {
+          "passed": true,
+          "within_budget": true,
+          "coverage_ok": true,
+          "issues": [],
+          "revision_count": 0
+        },
+        "citation_source_ids": [
+          "syn-hz-001",
+          "syn-hz-002"
+        ],
+        "narrative_day_source_ids": [
+          [
+            "syn-hz-001"
+          ],
+          [
+            "syn-hz-002"
+          ],
+          [
+            "syn-hz-001"
+          ]
+        ]
+      }
+    },
+    {
+      "case_id": "V2-004",
+      "title": "上海自然一日的模型说明",
+      "tags": [
+        "eligible",
+        "上海",
+        "自然"
+      ],
+      "requires_model": true,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 4112.89,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "llm_augmented",
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": null,
+          "attempts": 1,
+          "llm_latency_ms": 4084.82,
+          "usage": {
+            "prompt_tokens": 481,
+            "completion_tokens": 206,
+            "total_tokens": 687
+          }
+        },
+        "validation": {
+          "passed": true,
+          "within_budget": true,
+          "coverage_ok": true,
+          "issues": [],
+          "revision_count": 0
+        },
+        "citation_source_ids": [
+          "syn-sh-001"
+        ],
+        "narrative_day_source_ids": [
+          [
+            "syn-sh-001"
+          ]
+        ]
+      }
+    },
+    {
+      "case_id": "V2-005",
+      "title": "上海两日低强度行程的模型说明",
+      "tags": [
+        "eligible",
+        "上海",
+        "多天"
+      ],
+      "requires_model": true,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 4595.05,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "llm_augmented",
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": null,
+          "attempts": 1,
+          "llm_latency_ms": 4584.87,
+          "usage": {
+            "prompt_tokens": 523,
+            "completion_tokens": 286,
+            "total_tokens": 809
+          }
+        },
+        "validation": {
+          "passed": true,
+          "within_budget": true,
+          "coverage_ok": true,
+          "issues": [],
+          "revision_count": 0
+        },
+        "citation_source_ids": [
+          "syn-sh-001"
+        ],
+        "narrative_day_source_ids": [
+          [
+            "syn-sh-001"
+          ],
+          [
+            "syn-sh-001"
+          ]
+        ]
+      }
+    },
+    {
+      "case_id": "V2-006",
+      "title": "成都文化一日的模型说明",
+      "tags": [
+        "eligible",
+        "成都",
+        "文化"
+      ],
+      "requires_model": true,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 4682.1,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "llm_augmented",
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": null,
+          "attempts": 1,
+          "llm_latency_ms": 4656.0,
+          "usage": {
+            "prompt_tokens": 571,
+            "completion_tokens": 229,
+            "total_tokens": 800
+          }
+        },
+        "validation": {
+          "passed": true,
+          "within_budget": true,
+          "coverage_ok": true,
+          "issues": [],
+          "revision_count": 0
+        },
+        "citation_source_ids": [
+          "syn-cd-002",
+          "syn-cd-001"
+        ],
+        "narrative_day_source_ids": [
+          [
+            "syn-cd-002",
+            "syn-cd-001"
+          ]
+        ]
+      }
+    },
+    {
+      "case_id": "V2-007",
+      "title": "成都自然两日的模型说明",
+      "tags": [
+        "eligible",
+        "成都",
+        "自然"
+      ],
+      "requires_model": true,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 4416.37,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "llm_augmented",
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": null,
+          "attempts": 1,
+          "llm_latency_ms": 4406.4,
+          "usage": {
+            "prompt_tokens": 591,
+            "completion_tokens": 305,
+            "total_tokens": 896
+          }
+        },
+        "validation": {
+          "passed": true,
+          "within_budget": true,
+          "coverage_ok": true,
+          "issues": [],
+          "revision_count": 0
+        },
+        "citation_source_ids": [
+          "syn-cd-001",
+          "syn-cd-002"
+        ],
+        "narrative_day_source_ids": [
+          [
+            "syn-cd-001"
+          ],
+          [
+            "syn-cd-002"
+          ]
+        ]
+      }
+    },
+    {
+      "case_id": "V2-008",
+      "title": "成都文化自然三日的模型说明",
+      "tags": [
+        "eligible",
+        "成都",
+        "混合偏好"
+      ],
+      "requires_model": true,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 5870.46,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "llm_augmented",
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": null,
+          "attempts": 1,
+          "llm_latency_ms": 5860.44,
+          "usage": {
+            "prompt_tokens": 632,
+            "completion_tokens": 385,
+            "total_tokens": 1017
+          }
+        },
+        "validation": {
+          "passed": true,
+          "within_budget": true,
+          "coverage_ok": true,
+          "issues": [],
+          "revision_count": 0
+        },
+        "citation_source_ids": [
+          "syn-cd-001",
+          "syn-cd-002"
+        ],
+        "narrative_day_source_ids": [
+          [
+            "syn-cd-001"
+          ],
+          [
+            "syn-cd-002"
+          ],
+          [
+            "syn-cd-001"
+          ]
+        ]
+      }
+    },
+    {
+      "case_id": "V2-009",
+      "title": "青岛文化一日的模型说明",
+      "tags": [
+        "eligible",
+        "青岛",
+        "文化"
+      ],
+      "requires_model": true,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 4397.31,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "llm_augmented",
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": null,
+          "attempts": 1,
+          "llm_latency_ms": 4374.62,
+          "usage": {
+            "prompt_tokens": 559,
+            "completion_tokens": 252,
+            "total_tokens": 811
+          }
+        },
+        "validation": {
+          "passed": true,
+          "within_budget": true,
+          "coverage_ok": true,
+          "issues": [],
+          "revision_count": 0
+        },
+        "citation_source_ids": [
+          "syn-qd-001",
+          "syn-qd-002"
+        ],
+        "narrative_day_source_ids": [
+          [
+            "syn-qd-001",
+            "syn-qd-002"
+          ]
+        ]
+      }
+    },
+    {
+      "case_id": "V2-010",
+      "title": "青岛骑行两日的模型说明",
+      "tags": [
+        "eligible",
+        "青岛",
+        "运动"
+      ],
+      "requires_model": true,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 4785.87,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "llm_augmented",
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": null,
+          "attempts": 1,
+          "llm_latency_ms": 4750.31,
+          "usage": {
+            "prompt_tokens": 580,
+            "completion_tokens": 287,
+            "total_tokens": 867
+          }
+        },
+        "validation": {
+          "passed": true,
+          "within_budget": true,
+          "coverage_ok": true,
+          "issues": [],
+          "revision_count": 0
+        },
+        "citation_source_ids": [
+          "syn-qd-002",
+          "syn-qd-001"
+        ],
+        "narrative_day_source_ids": [
+          [
+            "syn-qd-002"
+          ],
+          [
+            "syn-qd-001"
+          ]
+        ]
+      }
+    },
+    {
+      "case_id": "V2-011",
+      "title": "青岛混合偏好两日的模型说明",
+      "tags": [
+        "eligible",
+        "青岛",
+        "混合偏好"
+      ],
+      "requires_model": true,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 4765.1,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "llm_augmented",
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": null,
+          "attempts": 1,
+          "llm_latency_ms": 4737.41,
+          "usage": {
+            "prompt_tokens": 582,
+            "completion_tokens": 301,
+            "total_tokens": 883
+          }
+        },
+        "validation": {
+          "passed": true,
+          "within_budget": true,
+          "coverage_ok": true,
+          "issues": [],
+          "revision_count": 0
+        },
+        "citation_source_ids": [
+          "syn-qd-001",
+          "syn-qd-002"
+        ],
+        "narrative_day_source_ids": [
+          [
+            "syn-qd-001"
+          ],
+          [
+            "syn-qd-002"
+          ]
+        ]
+      }
+    },
+    {
+      "case_id": "V2-012",
+      "title": "苏州文化两日的模型说明",
+      "tags": [
+        "eligible",
+        "苏州",
+        "文化"
+      ],
+      "requires_model": true,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 4582.92,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "llm_augmented",
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": null,
+          "attempts": 1,
+          "llm_latency_ms": 4572.99,
+          "usage": {
+            "prompt_tokens": 521,
+            "completion_tokens": 282,
+            "total_tokens": 803
+          }
+        },
+        "validation": {
+          "passed": true,
+          "within_budget": true,
+          "coverage_ok": true,
+          "issues": [],
+          "revision_count": 0
+        },
+        "citation_source_ids": [
+          "syn-sz-001"
+        ],
+        "narrative_day_source_ids": [
+          [
+            "syn-sz-001"
+          ],
+          [
+            "syn-sz-001"
+          ]
+        ]
+      }
+    },
+    {
+      "case_id": "V2-013",
+      "title": "西安亲子一日的模型说明",
+      "tags": [
+        "eligible",
+        "西安",
+        "亲子"
+      ],
+      "requires_model": true,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 4133.89,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "llm_augmented",
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": null,
+          "attempts": 1,
+          "llm_latency_ms": 4107.83,
+          "usage": {
+            "prompt_tokens": 475,
+            "completion_tokens": 185,
+            "total_tokens": 660
+          }
+        },
+        "validation": {
+          "passed": true,
+          "within_budget": true,
+          "coverage_ok": true,
+          "issues": [],
+          "revision_count": 0
+        },
+        "citation_source_ids": [
+          "syn-xa-001"
+        ],
+        "narrative_day_source_ids": [
+          [
+            "syn-xa-001"
+          ]
+        ]
+      }
+    },
+    {
+      "case_id": "V2-014",
+      "title": "厦门阅读两日的模型说明",
+      "tags": [
+        "eligible",
+        "厦门",
+        "慢节奏"
+      ],
+      "requires_model": true,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 4207.76,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "llm_augmented",
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": null,
+          "attempts": 1,
+          "llm_latency_ms": 4196.83,
+          "usage": {
+            "prompt_tokens": 514,
+            "completion_tokens": 251,
+            "total_tokens": 765
+          }
+        },
+        "validation": {
+          "passed": true,
+          "within_budget": true,
+          "coverage_ok": true,
+          "issues": [],
+          "revision_count": 0
+        },
+        "citation_source_ids": [
+          "syn-xm-001"
+        ],
+        "narrative_day_source_ids": [
+          [
+            "syn-xm-001"
+          ],
+          [
+            "syn-xm-001"
+          ]
+        ]
+      }
+    },
+    {
+      "case_id": "V2-015",
+      "title": "广州美食一日的模型说明",
+      "tags": [
+        "eligible",
+        "广州",
+        "美食"
+      ],
+      "requires_model": true,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 4302.18,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "llm_augmented",
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": null,
+          "attempts": 1,
+          "llm_latency_ms": 4292.86,
+          "usage": {
+            "prompt_tokens": 480,
+            "completion_tokens": 214,
+            "total_tokens": 694
+          }
+        },
+        "validation": {
+          "passed": true,
+          "within_budget": true,
+          "coverage_ok": true,
+          "issues": [],
+          "revision_count": 0
+        },
+        "citation_source_ids": [
+          "syn-gz-001"
+        ],
+        "narrative_day_source_ids": [
+          [
+            "syn-gz-001"
+          ]
+        ]
+      }
+    },
+    {
+      "case_id": "V2-016",
+      "title": "南京文化两日的模型说明",
+      "tags": [
+        "eligible",
+        "南京",
+        "文化"
+      ],
+      "requires_model": true,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 4548.92,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "llm_augmented",
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": null,
+          "attempts": 1,
+          "llm_latency_ms": 4520.7,
+          "usage": {
+            "prompt_tokens": 520,
+            "completion_tokens": 251,
+            "total_tokens": 771
+          }
+        },
+        "validation": {
+          "passed": true,
+          "within_budget": true,
+          "coverage_ok": true,
+          "issues": [],
+          "revision_count": 0
+        },
+        "citation_source_ids": [
+          "syn-nj-001"
+        ],
+        "narrative_day_source_ids": [
+          [
+            "syn-nj-001"
+          ],
+          [
+            "syn-nj-001"
+          ]
+        ]
+      }
+    },
+    {
+      "case_id": "V2-017",
+      "title": "杭州亲子一日的模型说明",
+      "tags": [
+        "eligible",
+        "杭州",
+        "亲子"
+      ],
+      "requires_model": true,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 6643.21,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "llm_augmented",
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": null,
+          "attempts": 1,
+          "llm_latency_ms": 6633.28,
+          "usage": {
+            "prompt_tokens": 563,
+            "completion_tokens": 244,
+            "total_tokens": 807
+          }
+        },
+        "validation": {
+          "passed": true,
+          "within_budget": true,
+          "coverage_ok": true,
+          "issues": [],
+          "revision_count": 0
+        },
+        "citation_source_ids": [
+          "syn-hz-001",
+          "syn-hz-002"
+        ],
+        "narrative_day_source_ids": [
+          [
+            "syn-hz-001",
+            "syn-hz-002"
+          ]
+        ]
+      }
+    },
+    {
+      "case_id": "V2-018",
+      "title": "成都手作一日的模型说明",
+      "tags": [
+        "eligible",
+        "成都",
+        "手作"
+      ],
+      "requires_model": true,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 4385.7,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "llm_augmented",
+          "provider": "deepseek",
+          "model": "deepseek-flash",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": null,
+          "attempts": 1,
+          "llm_latency_ms": 4375.68,
+          "usage": {
+            "prompt_tokens": 572,
+            "completion_tokens": 263,
+            "total_tokens": 835
+          }
+        },
+        "validation": {
+          "passed": true,
+          "within_budget": true,
+          "coverage_ok": true,
+          "issues": [],
+          "revision_count": 0
+        },
+        "citation_source_ids": [
+          "syn-cd-002",
+          "syn-cd-001"
+        ],
+        "narrative_day_source_ids": [
+          [
+            "syn-cd-002",
+            "syn-cd-001"
+          ]
+        ]
+      }
+    },
+    {
+      "case_id": "V2-019",
+      "title": "杭州极低预算触发确定性降级",
+      "tags": [
+        "boundary",
+        "low-budget"
+      ],
+      "requires_model": false,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 18.13,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "deterministic_fallback",
+          "provider": "deepseek",
+          "model": "deepseek-chat",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": "validation_not_passed",
+          "attempts": 0,
+          "llm_latency_ms": null,
+          "usage": null
+        },
+        "validation": {
+          "passed": false,
+          "within_budget": false,
+          "coverage_ok": true,
+          "issues": [
+            "在一次预算优先修订后，住宿、餐饮和市内交通的示例基础成本仍超过预算；请提高预算或减少天数/人数。"
+          ],
+          "revision_count": 1
+        },
+        "citation_source_ids": [
+          "syn-hz-001",
+          "syn-hz-002"
+        ],
+        "narrative_day_source_ids": []
+      }
+    },
+    {
+      "case_id": "V2-020",
+      "title": "成都极低预算触发确定性降级",
+      "tags": [
+        "boundary",
+        "low-budget"
+      ],
+      "requires_model": false,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 8.3,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "deterministic_fallback",
+          "provider": "deepseek",
+          "model": "deepseek-chat",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": "validation_not_passed",
+          "attempts": 0,
+          "llm_latency_ms": null,
+          "usage": null
+        },
+        "validation": {
+          "passed": false,
+          "within_budget": false,
+          "coverage_ok": true,
+          "issues": [
+            "在一次预算优先修订后，住宿、餐饮和市内交通的示例基础成本仍超过预算；请提高预算或减少天数/人数。"
+          ],
+          "revision_count": 1
+        },
+        "citation_source_ids": [
+          "syn-cd-002",
+          "syn-cd-001"
+        ],
+        "narrative_day_source_ids": []
+      }
+    },
+    {
+      "case_id": "V2-021",
+      "title": "青岛极低预算触发确定性降级",
+      "tags": [
+        "boundary",
+        "low-budget"
+      ],
+      "requires_model": false,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 8.69,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "deterministic_fallback",
+          "provider": "deepseek",
+          "model": "deepseek-chat",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": "validation_not_passed",
+          "attempts": 0,
+          "llm_latency_ms": null,
+          "usage": null
+        },
+        "validation": {
+          "passed": false,
+          "within_budget": false,
+          "coverage_ok": true,
+          "issues": [
+            "在一次预算优先修订后，住宿、餐饮和市内交通的示例基础成本仍超过预算；请提高预算或减少天数/人数。"
+          ],
+          "revision_count": 1
+        },
+        "citation_source_ids": [
+          "syn-qd-002",
+          "syn-qd-001"
+        ],
+        "narrative_day_source_ids": []
+      }
+    },
+    {
+      "case_id": "V2-022",
+      "title": "苏州极低预算触发确定性降级",
+      "tags": [
+        "boundary",
+        "low-budget"
+      ],
+      "requires_model": false,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 7.5,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "deterministic_fallback",
+          "provider": "deepseek",
+          "model": "deepseek-chat",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": "validation_not_passed",
+          "attempts": 0,
+          "llm_latency_ms": null,
+          "usage": null
+        },
+        "validation": {
+          "passed": false,
+          "within_budget": false,
+          "coverage_ok": true,
+          "issues": [
+            "在一次预算优先修订后，住宿、餐饮和市内交通的示例基础成本仍超过预算；请提高预算或减少天数/人数。"
+          ],
+          "revision_count": 1
+        },
+        "citation_source_ids": [
+          "syn-sz-001"
+        ],
+        "narrative_day_source_ids": []
+      }
+    },
+    {
+      "case_id": "V2-023",
+      "title": "广州极低预算触发确定性降级",
+      "tags": [
+        "boundary",
+        "low-budget"
+      ],
+      "requires_model": false,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 7.69,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "deterministic_fallback",
+          "provider": "deepseek",
+          "model": "deepseek-chat",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": "validation_not_passed",
+          "attempts": 0,
+          "llm_latency_ms": null,
+          "usage": null
+        },
+        "validation": {
+          "passed": false,
+          "within_budget": false,
+          "coverage_ok": true,
+          "issues": [
+            "在一次预算优先修订后，住宿、餐饮和市内交通的示例基础成本仍超过预算；请提高预算或减少天数/人数。"
+          ],
+          "revision_count": 1
+        },
+        "citation_source_ids": [
+          "syn-gz-001"
+        ],
+        "narrative_day_source_ids": []
+      }
+    },
+    {
+      "case_id": "V2-024",
+      "title": "上海极低预算触发确定性降级",
+      "tags": [
+        "boundary",
+        "low-budget"
+      ],
+      "requires_model": false,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 7.73,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "deterministic_fallback",
+          "provider": "deepseek",
+          "model": "deepseek-chat",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": "validation_not_passed",
+          "attempts": 0,
+          "llm_latency_ms": null,
+          "usage": null
+        },
+        "validation": {
+          "passed": false,
+          "within_budget": false,
+          "coverage_ok": true,
+          "issues": [
+            "在一次预算优先修订后，住宿、餐饮和市内交通的示例基础成本仍超过预算；请提高预算或减少天数/人数。"
+          ],
+          "revision_count": 1
+        },
+        "citation_source_ids": [
+          "syn-sh-001"
+        ],
+        "narrative_day_source_ids": []
+      }
+    },
+    {
+      "case_id": "V2-025",
+      "title": "未知城市一号不调用模型",
+      "tags": [
+        "boundary",
+        "unknown-city"
+      ],
+      "requires_model": false,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 19.42,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "deterministic_fallback",
+          "provider": "deepseek",
+          "model": "deepseek-chat",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": "knowledge_empty",
+          "attempts": 0,
+          "llm_latency_ms": null,
+          "usage": null
+        },
+        "validation": {
+          "passed": false,
+          "within_budget": true,
+          "coverage_ok": false,
+          "issues": [
+            "修订后仍缺少完整日程，需人工补充资料。"
+          ],
+          "revision_count": 1
+        },
+        "citation_source_ids": [],
+        "narrative_day_source_ids": []
+      }
+    },
+    {
+      "case_id": "V2-026",
+      "title": "未知城市二号不调用模型",
+      "tags": [
+        "boundary",
+        "unknown-city"
+      ],
+      "requires_model": false,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 29.5,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "deterministic_fallback",
+          "provider": "deepseek",
+          "model": "deepseek-chat",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": "knowledge_empty",
+          "attempts": 0,
+          "llm_latency_ms": null,
+          "usage": null
+        },
+        "validation": {
+          "passed": false,
+          "within_budget": true,
+          "coverage_ok": false,
+          "issues": [
+            "修订后仍缺少完整日程，需人工补充资料。"
+          ],
+          "revision_count": 1
+        },
+        "citation_source_ids": [],
+        "narrative_day_source_ids": []
+      }
+    },
+    {
+      "case_id": "V2-027",
+      "title": "未知城市三号不调用模型",
+      "tags": [
+        "boundary",
+        "unknown-city"
+      ],
+      "requires_model": false,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 12.85,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "deterministic_fallback",
+          "provider": "deepseek",
+          "model": "deepseek-chat",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": "knowledge_empty",
+          "attempts": 0,
+          "llm_latency_ms": null,
+          "usage": null
+        },
+        "validation": {
+          "passed": false,
+          "within_budget": true,
+          "coverage_ok": false,
+          "issues": [
+            "修订后仍缺少完整日程，需人工补充资料。"
+          ],
+          "revision_count": 1
+        },
+        "citation_source_ids": [],
+        "narrative_day_source_ids": []
+      }
+    },
+    {
+      "case_id": "V2-028",
+      "title": "未知城市四号不调用模型",
+      "tags": [
+        "boundary",
+        "unknown-city"
+      ],
+      "requires_model": false,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 7.84,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "deterministic_fallback",
+          "provider": "deepseek",
+          "model": "deepseek-chat",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": "knowledge_empty",
+          "attempts": 0,
+          "llm_latency_ms": null,
+          "usage": null
+        },
+        "validation": {
+          "passed": false,
+          "within_budget": true,
+          "coverage_ok": false,
+          "issues": [
+            "修订后仍缺少完整日程，需人工补充资料。"
+          ],
+          "revision_count": 1
+        },
+        "citation_source_ids": [],
+        "narrative_day_source_ids": []
+      }
+    },
+    {
+      "case_id": "V2-029",
+      "title": "未知城市五号不调用模型",
+      "tags": [
+        "boundary",
+        "unknown-city"
+      ],
+      "requires_model": false,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 7.7,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "deterministic_fallback",
+          "provider": "deepseek",
+          "model": "deepseek-chat",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": "knowledge_empty",
+          "attempts": 0,
+          "llm_latency_ms": null,
+          "usage": null
+        },
+        "validation": {
+          "passed": false,
+          "within_budget": true,
+          "coverage_ok": false,
+          "issues": [
+            "修订后仍缺少完整日程，需人工补充资料。"
+          ],
+          "revision_count": 1
+        },
+        "citation_source_ids": [],
+        "narrative_day_source_ids": []
+      }
+    },
+    {
+      "case_id": "V2-030",
+      "title": "未知城市六号不调用模型",
+      "tags": [
+        "boundary",
+        "unknown-city"
+      ],
+      "requires_model": false,
+      "passed": true,
+      "http_status": 200,
+      "request_duration_ms": 8.21,
+      "failures": [],
+      "observed": {
+        "generation": {
+          "mode": "deterministic_fallback",
+          "provider": "deepseek",
+          "model": "deepseek-chat",
+          "prompt_version": "travelops-v2.0.0",
+          "fallback_code": "knowledge_empty",
+          "attempts": 0,
+          "llm_latency_ms": null,
+          "usage": null
+        },
+        "validation": {
+          "passed": false,
+          "within_budget": true,
+          "coverage_ok": false,
+          "issues": [
+            "修订后仍缺少完整日程，需人工补充资料。"
+          ],
+          "revision_count": 1
+        },
+        "citation_source_ids": [],
+        "narrative_day_source_ids": []
+      }
+    }
+  ]
+}
