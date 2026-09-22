@@ -200,7 +200,7 @@
         </div>`;
       }).join("");
       return `<article class="itinerary-day">
-        <div class="day-label">第 ${escapeHtml(day.day || "") } 天</div>
+        <div class="day-label">第 ${escapeHtml(day.day || "")} 天${day.date_label ? ` · ${escapeHtml(day.date_label)}` : ""}</div>
         <div class="day-content">
           <h4>${escapeHtml(day.theme || "当日游玩安排")}</h4>
           ${itemHtml || '<p class="empty-inline">这一天暂时没有可安排的公开资料。</p>'}

@@ -135,6 +135,14 @@ function dayTheme(request, dayIndex, sources) {
   return request.destination + " · 第 " + (dayIndex + 1) + " 天：慢游与当地餐饮安排";
 }
 
+function dateLabel(startDate, dayIndex) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(startDate || ""))) return null;
+  const [year, month, day] = startDate.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + dayIndex));
+  if (Number.isNaN(date.getTime())) return null;
+  return (date.getUTCMonth() + 1) + "月" + date.getUTCDate() + "日";
+}
+
 function makeItinerary(request, sources) {
   const daySources = sourcesByDay(sources, request.days);
 
@@ -143,6 +151,7 @@ function makeItinerary(request, sources) {
     const [morningSource, afternoonSource, ...extras] = candidates;
     return {
       day: dayIndex + 1,
+      date_label: dateLabel(request.start_date, dayIndex),
       theme: dayTheme(request, dayIndex, candidates),
       items: [
         morningSource ? attractionItem("上午", morningSource) : flexibleMorningItem(),
@@ -218,6 +227,7 @@ function buildValidation(retrieval, budget) {
 export function buildFreePublicSourcePlan(payload, retrieval) {
   const request = {
     destination: String(payload.destination || "").trim(),
+    start_date: payload.start_date || null,
     days: Number(payload.days),
     travelers: Number(payload.travelers),
     total_budget_cny: Number(payload.total_budget_cny),
@@ -239,6 +249,7 @@ export function buildFreePublicSourcePlan(payload, retrieval) {
     plan_id: "FREE-SOURCES-" + stableHash(identity),
     request_summary: {
       destination: request.destination,
+      start_date: request.start_date,
       days: request.days,
       travelers: request.travelers,
       interests: request.interests,

@@ -200,12 +200,14 @@ test("free-source plan retains citations and limits its budget to in-destination
       { source_id: "zh-wikipedia-B", title: "上饶候选二", uri: "https://zh.wikipedia.org/wiki/B", excerpt: "来源二" },
     ],
   };
-  const plan = buildFreePublicSourcePlan(planningPayload(), retrieval);
+  const plan = buildFreePublicSourcePlan(planningPayload({ start_date: "2026-09-29" }), retrieval);
 
   assert.match(plan.plan_id, /^FREE-SOURCES-/);
   assert.equal(plan.request_summary.mock_mode, false);
   assert.equal(plan.request_summary.data_mode, "free_public_sources");
+  assert.equal(plan.request_summary.start_date, "2026-09-29");
   assert.equal(plan.itinerary.length, 2);
+  assert.deepEqual(plan.itinerary.map((day) => day.date_label), ["9月29日", "9月30日"]);
   assert.ok(plan.itinerary.every((day) => day.items.length >= 4));
   assert.deepEqual(
     plan.itinerary.map((day) => day.items.slice(0, 4).map((item) => item.slot)),
