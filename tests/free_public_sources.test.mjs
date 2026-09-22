@@ -56,6 +56,12 @@ function sourcePages(hostname) {
       extract: "上饶测试资料。",
       fullurl: "https://evil.example/wiki/unsafe",
     },
+    4: {
+      index: 4,
+      title: "上饶轨道交通体系",
+      extract: "上饶相关交通规划，不应作为游玩候选。",
+      fullurl: "https://" + hostname + "/wiki/transport",
+    },
   };
 }
 
@@ -90,6 +96,7 @@ test("free public retrieval sends only a destination query and returns safe, cit
   assert.equal(retrieval.source_count, 2);
   assert.ok(retrieval.sources.every((source) => source.uri.startsWith("https://zh.")));
   assert.ok(retrieval.sources.every((source) => source.source_id.startsWith("zh-")));
+  assert.equal(retrieval.sources.some((source) => source.title.includes("轨道交通")), false);
   assert.equal(JSON.stringify(retrieval).includes("private-contact"), false);
 });
 

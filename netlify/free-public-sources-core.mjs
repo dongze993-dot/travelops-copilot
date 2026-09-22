@@ -27,6 +27,7 @@ const DEFAULT_CACHE_TTL_SECONDS = 600;
 const MAX_INTERESTS = 8;
 const MAX_INTEREST_LENGTH = 40;
 const MAX_DESTINATION_LENGTH = 80;
+const NON_VISIT_TITLE_PATTERN = /(轨道交通|交通体系|经济带|铁路|高速公路|规划|集中营|行政区划|学校|政府|公司|列表)/u;
 const processCache = new Map();
 
 export class FreePublicSourceError extends Error {
@@ -71,6 +72,11 @@ function pageMatchesDestination(page, destination) {
   if (!needle) return false;
   const text = cleanText(String(page?.title || "") + " " + String(page?.extract || ""), 8_000);
   return text.includes(destination) || (needle.length >= 2 && text.includes(needle));
+}
+
+function isVisitCandidate(page, destination) {
+  const title = cleanText(page?.title, 160);
+  return pageMatchesDestination(page, destination) && !NON_VISIT_TITLE_PATTERN.test(title);
 }
 
 function safeSourceUrl(value, provider) {
@@ -122,7 +128,7 @@ function makeSearchUrl(provider, input) {
 
 function normalisePages(body, provider, input) {
   const pages = Object.values(body?.query?.pages || {})
-    .filter((page) => pageMatchesDestination(page, input.destination))
+    .filter((page) => isVisitCandidate(page, input.destination))
     .sort((left, right) => Number(left?.index || Number.MAX_SAFE_INTEGER) - Number(right?.index || Number.MAX_SAFE_INTEGER));
   const seen = new Set();
 
