@@ -96,6 +96,12 @@ function safeSourceUrl(value, provider) {
   }
 }
 
+function sourceIdentity(source) {
+  return cleanText(source?.title, 160)
+    .replace(/[\s()（）]/g, "")
+    .toLocaleLowerCase();
+}
+
 function isoTime(value) {
   return new Date(value).toISOString();
 }
@@ -285,7 +291,9 @@ export async function retrieveFreePublicTravelSources(payload, {
       const body = await fetchProviderPages(provider, input, { fetchImpl, timeoutMs: config.timeoutMs });
       for (const source of normalisePages(body, provider, input)) {
         if (sourceMap.size >= input.maxResults) break;
-        sourceMap.set(source.uri, source);
+        const identity = sourceIdentity(source);
+        if (!identity || sourceMap.has(identity)) continue;
+        sourceMap.set(identity, source);
       }
     } catch (error) {
       failures.push(error);

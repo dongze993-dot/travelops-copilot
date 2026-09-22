@@ -120,6 +120,25 @@ test("free public retrieval caches results without a second public-source reques
   assert.equal(second.cache_age_seconds, 17);
 });
 
+test("free public retrieval deduplicates the same attraction returned by both public sources", async () => {
+  const retrieval = await retrieveFreePublicTravelSources(planningPayload(), {
+    cache: new Map(),
+    fetchImpl: async (url) => {
+      const hostname = new URL(url).hostname;
+      return providerResponse({
+        1: {
+          index: 1,
+          title: "三清山",
+          extract: "三清山位于上饶市，适合作为自然风光候选。",
+          fullurl: "https://" + hostname + "/wiki/%E4%B8%89%E6%B8%85%E5%B1%B1",
+        },
+      });
+    },
+  });
+  assert.equal(retrieval.source_count, 1);
+  assert.equal(retrieval.sources[0].title, "三清山");
+});
+
 test("free public retrieval returns an honest empty result and safe source failures", async () => {
   const noResults = await retrieveFreePublicTravelSources(planningPayload(), {
     cache: new Map(),
