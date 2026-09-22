@@ -30,23 +30,23 @@ API citation / source_url（synthetic:// ID）
 
 链路中的 `synthetic://` 不是外部网站，不能被当作外部权威来源引用。
 
-## 可选联网检索链路
+## 免费公开资料查询链路
 
-启用 Netlify v3 后，链路与合成知识库严格分开：
+Netlify v3 的免费公开资料查询与合成知识库严格分开：
 
 ```text
-访问者填写 destination + interests（不含备注/联系人）
+访问者填写 destination（不含备注/联系人）
           ↓
-Netlify Function（服务器端 Key）
+Netlify Function（无需 Key）
           ↓
-Tavily Search API
+中文维基导游 / 中文维基百科的只读接口
           ↓
 清洗后的 https URL、标题、短摘要、retrieved_at
           ↓
 候选日程 + citation + 行前核验提示
 ```
 
-不写入 Git 的数据包括 API Key、Authorization 头、原始供应商错误、完整网页内容、访问者备注和个人信息。短时服务端缓存只使用规范化的目的地/偏好和已清洗的来源；它不是持久化用户档案。Netlify Blobs 的日额度槽位只记录 UTC 日期、槽号和预留时间，不包含查询内容或访客身份。当前每 IP 限流、短时缓存和固定槽位只能作为保守的演示反滥用保护，不等同于生产级身份认证或付费额度系统。详见 [联网检索说明](live-retrieval.md)。
+不写入 Git 的数据包括 API Key、Authorization 头、完整网页内容、访问者备注和个人信息。短时服务端缓存只使用规范化的目的地和已清洗的来源；它不是持久化用户档案。每 IP 限流与短时缓存用于降低对免费公开资料站点的重复请求，不等同于生产级身份认证系统。详见 [免费公开资料说明](live-retrieval.md)。
 
 ## 真实数据接入清单
 

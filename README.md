@@ -2,7 +2,7 @@
 
 > 面向旅行运营场景的 AI 应用工程 PoC：把**行程知识检索、约束校验、可解释行程草案与模拟工单流转**串成一个可本地运行、可审计的工作流。
 
-> **项目状态：v0.3 / 已完成一次受控真实 API 评测，新增可选联网检索适配层。** 仓库内的景点、价格、营业时间、来源与联系人均为作者原创的虚构/合成示例。Netlify v3 可在部署管理员显式配置后临时查询网页来源，但它不等同于实时票务、报价、地图导航、预订、CRM 或支付服务；任何结果均需在原始来源页核验。
+> **项目状态：v0.3 / 已完成一次受控真实 API 评测，并提供免费公开资料查询演示。** 仓库内 v1/v2 的景点、价格、营业时间、来源与联系人均为作者原创的虚构/合成示例。Netlify v3 只读查询中文维基导游和中文维基百科，不需要账号、绑卡或 API Key；它不等同于实时票务、报价、地图导航、预订、CRM 或支付服务，任何结果均需在原始来源页核验。
 
 > **关于 AI 的真实边界：** `/api/v1/plans` 是可复跑的确定性基线。`/api/v2/plans` 支持可选 DeepSeek 模型调用，但仅用于解释已校验的合成候选；模型不能改写来源、预算、行程和模拟工单。仓库保留了一次固定合成测试集上的真实 API 原始报告；该报告只说明本次配置下的接口、结构化输出和受控来源校验，不代表模型整体能力、真实旅游准确率、生产 SLA、成本或真实业务效果。
 
@@ -36,7 +36,7 @@
 | 工作流 | LangGraph `StateGraph` | 显式状态、分支、一次受控修订和执行轨迹 |
 | 模型适配（v2 可选） | DeepSeek Chat Completions HTTP API、JSON 输出、版本化提示词 | 真实 API 对接、结构化输出、token/延迟元数据、失败降级 |
 | 知识层 | 本地 JSON、可追溯的合成来源 ID | 受控检索、来源返回与空覆盖降级 |
-| 联网检索（Netlify v3 可选） | Tavily Search API、服务端来源清洗、短时缓存、函数限流与 Blobs 固定槽位日额度 | 外部 API 对接、来源 URL/获取时间、敏感字段最小化、额度保护与 fail-closed |
+| 免费公开资料查询（Netlify v3） | 中文维基导游 / 中文维基百科只读查询、服务端来源清洗、短时缓存与函数限流 | 无 Key 的公开资料查询、来源 URL/获取时间、敏感字段最小化与诚实降级 |
 | 集成模拟 | SQLite 模拟 CRM 工单 | 创建/查询接口、字段映射、人工跟进边界 |
 | 交付 | Docker Compose、健康检查、README、API 文档 | 可本地复现的 PoC 交付 |
 | 质量 | HTTP 黑盒评测、版本化 JSONL 用例 | 从公开接口验证，不依赖内部函数 |
@@ -83,11 +83,11 @@ docker compose up --build
 | `GET /api/v1/attractions` | 查询同一份合成景点 JSON |
 | `POST /api/v1/plans` | 返回确定性行程、预算、引用和执行轨迹 |
 | `POST /api/v2/plans` | 返回确定性结果，并明确标记 `llm_disabled` 降级 |
-| `GET /api/v3/live-attractions` | 可选联网检索的来源卡片；未配置时明确返回 `503` |
-| `POST /api/v3/live-plans` | 可选联网来源的候选日程与预算分配框架；不把摘要伪装成实时报价 |
+| `GET /api/v3/free-attractions` | 免费公开资料来源卡片；无需账号、绑卡或 API Key |
+| `POST /api/v3/free-plans` | 以同次免费公开资料组织候选日程与粗略游玩预算区间；不把摘要伪装成实时报价 |
 | `/api/v1/tickets` 与兼容旧路径 | 固定返回 `403`，不写入任何工单 |
 
-Netlify 版本**不是**当前 Python/FastAPI/LangGraph 服务的原样运行：它不启动 Python、LangGraph、SQLite、DeepSeek，也不提供 `/docs`。v1/v2 仅复用受控合成数据和确定性规划规则；v3 只有在服务器端配置 Tavily 后才会请求外部网页检索服务。它不需要、也不应配置 DeepSeek API Key。选择、部署和验收的精确步骤见 [Netlify Functions API 演示](docs/deployment.md#netlify-functions-api-演示) 与 [联网检索说明](docs/live-retrieval.md)。
+Netlify 版本**不是**当前 Python/FastAPI/LangGraph 服务的原样运行：它不启动 Python、LangGraph、SQLite、DeepSeek，也不提供 `/docs`。v1/v2 仅复用受控合成数据和确定性规划规则；v3 用免费、只读的中文维基导游和中文维基百科资料补充未知城市或县城。它不需要、也不会配置 DeepSeek API Key。选择、部署和验收的精确步骤见 [Netlify Functions API 演示](docs/deployment.md#netlify-functions-api-演示) 与 [免费公开资料说明](docs/live-retrieval.md)。
 
 ## 主要 API（v1）
 
@@ -97,8 +97,8 @@ Netlify 版本**不是**当前 Python/FastAPI/LangGraph 服务的原样运行：
 | `GET` | `/api/v1/attractions` | 按目的地、兴趣查询合成知识库 |
 | `POST` | `/api/v1/plans` | 生成结构化行程草案及校验结果 |
 | `POST` | `/api/v2/plans` | 在 v1 基线之上返回经过 JSON/来源白名单校验的可选模型说明 |
-| `GET` | `/api/v3/live-attractions` | 获取可打开、带获取时间的联网网页来源；需服务器端显式配置 |
-| `POST` | `/api/v3/live-plans` | 以同次联网来源组织候选日程，不作实时价格/可订性承诺 |
+| `GET` | `/api/v3/free-attractions` | 获取可打开、带获取时间的免费公开资料来源 |
+| `POST` | `/api/v3/free-plans` | 以同次免费公开资料组织候选日程和粗略游玩预算区间，不作实时价格/可订性承诺 |
 | `POST` | `/api/v1/tickets` | 创建本地模拟人工跟进工单；公共演示返回 `403` |
 | `GET` | `/api/v1/tickets/{ticket_id}` | 查询本地模拟工单；公共演示返回 `403` |
 | `GET` | `/api/v1/tickets` | 查询本地模拟工单；公共演示返回 `403` |
@@ -126,7 +126,7 @@ Netlify 版本**不是**当前 Python/FastAPI/LangGraph 服务的原样运行：
 - [指标口径](docs/metrics.md)：如何计算，而不是提前声称结果；
 - [模型评测规范](docs/model-evaluation.md)：真实 API 接入后如何生成可复跑、去敏的模型证据；
 - [架构决策 ADR-0001](docs/decisions/0001-public-demo-boundary.md)：公开演示为何关闭工单读写，以及如何验证该边界；
-- [联网检索说明](docs/live-retrieval.md)：v3 的外部 API 边界、密钥配置、限流与真实验收方法；
+- [免费公开资料说明](docs/live-retrieval.md)：v3 的免费来源边界、隐私限制、缓存与验收方法；
 
 运行评测（服务启动后）：
 

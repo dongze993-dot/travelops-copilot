@@ -10,11 +10,7 @@ not need payment credentials, identity documents, or a production CRM
 connection. Do not add real customer data, secrets, or booking credentials to
 this repository.
 
-The optional Netlify v3 live-retrieval adapter uses a separate `TAVILY_API_KEY`.
-It must exist only in Netlify's server-side function environment, never in
-`netlify.toml`, browser JavaScript, GitHub, chat, screenshots, logs, or API
-responses. The route only sends destination and selected interests to the
-provider; free-text notes and ticket requests are rejected before retrieval.
+The Netlify v3 free-public-source adapter needs no API key, account, card, or payment credential. It only sends a validated destination to the read-only Chinese Wikivoyage and Chinese Wikipedia endpoints. Free-text notes and ticket requests are rejected before retrieval.
 
 ## Reporting a vulnerability
 
@@ -39,12 +35,9 @@ then arrange a private follow-up.
 - The bundled knowledge data is explicitly marked as example data. Replace it
   only with public, licensed, or properly de-identified material.
 - v3 returns only a sanitized `https` URL, title, short snippet and retrieval
-  time. It never treats a search result as verified price, opening hours,
+  time. It never treats a public-source result as verified price, opening hours,
   routing, booking availability, or safety information.
-- v3 functions have a conservative per-IP Netlify rate limit, short cache and
-  a Blobs-backed fixed daily-slot guard. The guard records no query or identity
-  data and fails closed if its conditional write is uncertain. It is still not
-  a financial-spend guarantee or authentication system: keep the site private
-  while testing a personal provider Key and confirm provider-side quotas before
-  broad public sharing.
+- v3 functions have a conservative per-IP Netlify rate limit and short cache.
+  These protect free source sites from repeated requests; they are not an
+  authentication system. No provider Key or billing credential is used.
 - This proof of concept is not a booking, medical, payment, or identity system.

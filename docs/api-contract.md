@@ -234,9 +234,9 @@ v2 使用与 `POST /api/v1/plans` 相同的请求体和确定性规划基础，�
 - 空城市、预算/覆盖校验失败、密钥缺失、超时、限流、无效 JSON 或来源幻觉都会回退；不会把失败伪装成成功。
 - CI 只运行离线 fake-provider 测试，不使用或保存任何真实密钥。真实模型评测须手动运行，并保留去敏后的原始报告。
 
-## `GET /api/v3/live-attractions`
+## `GET /api/v3/free-attractions`
 
-这是独立、显式开启的联网来源检索接口。它只接受目的地与兴趣，不读取仓库中的合成景点资料，也不调用 DeepSeek。函数未配置联网检索 Key 时固定返回 `503` / `live_retrieval_not_configured`，不会把合成结果标为联网。
+这是独立的免费公开资料查询接口。它只接受目的地与兴趣，不读取仓库中的合成景点资料，也不调用 DeepSeek、不需要 Key 或账号。它只读查询中文维基导游与中文维基百科，绝不会把合成结果标为联网资料。
 
 | 查询参数 | 必填 | 说明 |
 | --- | --- | --- |
@@ -244,19 +244,19 @@ v2 使用与 `POST /api/v1/plans` 相同的请求体和确定性规划基础，�
 | `interests` | 否 | 逗号分隔，最多 8 项、每项最多 40 个字符 |
 | `limit` | 否 | 1–8；实际返回仍受服务端配置上限约束 |
 
-成功响应中的 `items` 是网页来源卡片，不是已核验的 POI 或报价：`price_cny` 固定为 `null`。`citations` 是已清洗的 `https` URL、标题、短摘要和来源 ID；`retrieval` 包含 `provider`、`status`（`live` / `cache_hit` / `no_results`）、`retrieved_at`、`cache_age_seconds`、`source_count` 和核验提示。
+成功响应中的 `items` 是公开资料来源卡片，不是已核验的 POI 或报价：`price_cny` 固定为 `null`。`citations` 是已清洗的 `https` URL、标题、短摘要和来源 ID；`retrieval` 包含 `provider`、`status`（`public_sources` / `cache_hit` / `no_results`）、`retrieved_at`、`cache_age_seconds`、`source_count` 和核验提示。
 
-该 GET 路径只包含查询参数，可能有短时 CDN 缓存；不要在 query 中放个人信息。
+该 GET 路径只包含查询参数，可能有短时 CDN 缓存；不要在 query 中放个人信息。免费来源不需要 API Key、账号、绑卡或付款。
 
-每个实际出站的缓存未命中请求会先占用一个 Netlify Blobs 的固定日额度槽位（默认 15）。额度已满返回 `429 live_search_demo_quota_exhausted`；存储保护不可用时返回 `503 live_search_quota_unavailable`，两种情形都不会调用外部搜索提供方。它是保守的演示可用性保护，不是付费/财务硬额度保证。
+每个 v3 函数保留每 IP 每分钟 3 次的限流，GET 路径有短时 CDN 缓存，避免对免费公开资料站点造成不必要的重复请求。它不是生产级身份认证系统。
 
-## `POST /api/v3/live-plans`
+## `POST /api/v3/free-plans`
 
 使用与 v1 相同的必填规划字段：`destination`、`days`、`travelers`、`total_budget_cny`。可选字段为 `start_date`、`interests` 和 `travel_style`。它额外遵守以下数据最小化边界：
 
-- `notes` 非空时返回 `422 live_retrieval_notes_not_allowed`；
+- `notes` 非空时返回 `422 free_public_source_notes_not_allowed`；
 - `create_follow_up_ticket=true` 时返回公开演示的 `403`；
-- 只有 `destination` 与规范化后的 `interests` 会被交给联网检索提供方；
+- 只有 `destination` 会被交给中文维基导游和中文维基百科的只读查询接口；
 - 所有未知字段都不会进入检索请求。
 
 响应保持 v1 渲染字段（`itinerary`、`budget`、`citations`、`validation`、`workflow_trace`、`ticket`），并增加 `retrieval`。每个日程项目指向本次来源的 `source_id`；无法检索时是“待补充”状态，而不是替换为别城内容。
@@ -275,7 +275,7 @@ v2 使用与 `POST /api/v1/plans` 相同的请求体和确定性规划基础，�
 }
 ```
 
-这表示项目只将用户输入的预算分配为住宿、餐饮、交通、体验和机动预留，不能被当作实时价格、报价或预订承诺。`validation.passed` 会保持 `false`，直到价格、营业状态、交通和预约由人工在原始来源页核验。完整配置与公共访问边界见 [联网检索说明](live-retrieval.md)。
+这表示项目按天数、人数和节奏计算景区与体验、餐饮、市内短途出行、小额伴手礼和机动预留的粗略游玩预算区间，并和用户填写的预算上限比较；不含往返交通与住宿，不能被当作实时价格、报价或预订承诺。`validation.passed` 会保持 `false`，直到价格、营业状态、交通和预约由人工在原始来源页核验。完整边界见 [免费公开资料说明](live-retrieval.md)。
 
 ## `POST /api/v1/tickets`
 
