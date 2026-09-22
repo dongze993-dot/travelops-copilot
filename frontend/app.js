@@ -1,39 +1,27 @@
 (() => {
   "use strict";
 
-  // The browser only calls same-origin APIs. Any provider credential stays on
-  // the server; the optional v2 route never receives a key from this UI.
   const API = {
     plan: "/api/v1/plans",
-    modelPlan: "/api/v2/plans",
     freePlan: "/api/v3/free-plans",
-    tickets: "/api/v1/tickets",
   };
   const isStaticBrowserDemo = window.TRAVELOPS_STATIC_DEMO === true;
+  const isNetlifySite = /(^|\.)netlify\.app$/i.test(window.location.hostname);
 
   const planForm = document.querySelector("#plan-form");
-  const ticketForm = document.querySelector("#ticket-form");
-  const planStatus = document.querySelector("#plan-status");
-  const ticketStatus = document.querySelector("#ticket-status");
   const planButton = document.querySelector("#plan-submit");
-  const ticketButton = document.querySelector("#ticket-submit");
+  const planStatus = document.querySelector("#plan-status");
   const planOutput = document.querySelector("#plan-output");
   const emptyState = document.querySelector("#empty-state");
   const resultState = document.querySelector("#result-state");
-  const useModelEnhancement = document.querySelector("#use-model-enhancement");
-  const useLiveRetrieval = document.querySelector("#use-live-retrieval");
-  const liveRetrievalOption = document.querySelector("#live-retrieval-option");
-  const liveRetrievalHelp = document.querySelector("#live-retrieval-help");
-  const createFollowUpTicket = document.querySelector("#create-follow-up-ticket");
-  const followUpTicketOption = document.querySelector("#follow-up-ticket-option");
-  const handoffCard = document.querySelector("#handoff-card");
-  const handoffCapability = document.querySelector("#handoff-capability");
-  const publicDemoNotice = document.querySelector("#public-demo-notice");
   const environmentLabel = document.querySelector("#environment-label");
+  const publicDemoNotice = document.querySelector("#public-demo-notice");
+  const sourcesSection = document.querySelector("#sources-section");
+  const budgetSection = document.querySelector("#budget-section");
+  const itinerarySection = document.querySelector("#itinerary-section");
+  const travelTip = document.querySelector("#travel-tip");
 
-  let lastPlanId = null;
-  let isPublicDemo = false;
-  let liveRetrievalEnabled = false;
+  let useFreePublicSources = isNetlifySite;
 
   const today = new Date();
   today.setDate(today.getDate() + 7);
@@ -57,17 +45,40 @@
     }
   }
 
-  function setStatus(element, message = "", kind = "") {
-    element.textContent = message;
-    element.className = `form-status${kind ? ` ${kind}` : ""}`;
+  function cny(value) {
+    const number = Number(value);
+    return Number.isFinite(number)
+      ? new Intl.NumberFormat("zh-CN", { style: "currency", currency: "CNY", maximumFractionDigits: 0 }).format(number)
+      : "";
   }
 
-  function setButtonLoading(button, isLoading, loadingLabel) {
-    if (!button.dataset.defaultLabel) {
-      button.dataset.defaultLabel = button.innerHTML;
+  function cnyRange(range) {
+    const minimum = cny(range?.minimum);
+    const maximum = cny(range?.maximum);
+    return minimum && maximum ? `${minimum}–${maximum}` : "";
+  }
+
+  function styleLabel(value) {
+    return {
+      budget: "精打细算",
+      balanced: "均衡体验",
+      comfort: "舒适从容",
+    }[value] || "旅行计划";
+  }
+
+  function setStatus(message = "", kind = "") {
+    planStatus.textContent = message;
+    planStatus.className = `form-status${kind ? ` ${kind}` : ""}`;
+  }
+
+  function setButtonLoading(isLoading, label = "正在生成") {
+    if (!planButton.dataset.defaultLabel) {
+      planButton.dataset.defaultLabel = planButton.innerHTML;
     }
-    button.disabled = isLoading;
-    button.innerHTML = isLoading ? `<span>${escapeHtml(loadingLabel)}</span><span aria-hidden="true">⋯</span>` : button.dataset.defaultLabel;
+    planButton.disabled = isLoading;
+    planButton.innerHTML = isLoading
+      ? `<span>${escapeHtml(label)}</span><span aria-hidden="true">⋯</span>`
+      : planButton.dataset.defaultLabel;
   }
 
   async function parseResponse(response) {
@@ -84,10 +95,11 @@
 
   async function staticDemoAdapter() {
     if (!isStaticBrowserDemo) return null;
-    const readiness = window.TravelOpsStaticDemoReady;
-    if (readiness && typeof readiness.then === "function") await readiness;
+    if (window.TravelOpsStaticDemoReady && typeof window.TravelOpsStaticDemoReady.then === "function") {
+      await window.TravelOpsStaticDemoReady;
+    }
     if (!window.TravelOpsStaticDemo) {
-      throw new Error("静态浏览器演示未能加载本地资料适配器，请刷新页面后重试。");
+      throw new Error("本地预览资料尚未加载，请刷新后再试。");
     }
     return window.TravelOpsStaticDemo;
   }
@@ -110,73 +122,32 @@
     return parseResponse(response);
   }
 
-  function enablePublicDemoMode(health = {}) {
-    isPublicDemo = true;
-    createFollowUpTicket.checked = false;
-    createFollowUpTicket.disabled = true;
-    followUpTicketOption.hidden = true;
-    handoffCard.hidden = true;
-    handoffCapability.hidden = true;
-    publicDemoNotice.hidden = false;
-    document.querySelector("#notes").closest(".notes-field").hidden = true;
-    if (isStaticBrowserDemo) {
-      useLiveRetrieval.checked = false;
-      useLiveRetrieval.disabled = true;
-      liveRetrievalOption.hidden = true;
-      useModelEnhancement.checked = false;
-      useModelEnhancement.disabled = true;
-      useModelEnhancement.closest(".model-option").hidden = true;
-      document.querySelector("#trace-heading").textContent = "浏览器计算步骤";
-      publicDemoNotice.innerHTML = "<strong>静态浏览器演示：</strong>结果仅由本页加载的合成资料与确定性规则生成，不运行 FastAPI、LangGraph、模型或 CRM；请勿输入个人信息。";
-      environmentLabel.textContent = "静态浏览器演示";
-      return;
-    }
-    if (health.model_calls_enabled === false) {
-      useModelEnhancement.checked = false;
-      useModelEnhancement.disabled = true;
-      useModelEnhancement.closest(".model-option").hidden = true;
-    }
-    if (health.deployment === "netlify_functions") {
-      liveRetrievalEnabled = health.free_public_sources?.enabled === true;
-      useLiveRetrieval.checked = liveRetrievalEnabled;
-      useLiveRetrieval.disabled = !liveRetrievalEnabled;
-      liveRetrievalOption.hidden = false;
-      if (liveRetrievalEnabled) {
-        liveRetrievalHelp.textContent = "免费查询中文维基导游和中文维基百科的公开资料；无需账号、绑卡或 API Key。票价与营业状态仍需核验。";
-        publicDemoNotice.innerHTML = "<strong>免费联网资料演示：</strong>仅查询目的地，选中的偏好只用于本次方案结构；返回可打开的中文公开资料来源，不调用 DeepSeek、模型、付费搜索、工单、FastAPI 或订票功能。请勿输入个人信息。";
-        environmentLabel.textContent = "免费联网资料演示";
-      } else {
-        liveRetrievalHelp.textContent = "免费公开资料查询暂时不可用；当前只能运行本地合成演示，未知城市不会被编造成真实结果。";
-        publicDemoNotice.innerHTML = "<strong>Netlify API 演示：</strong>当前仅返回合成数据的确定性结果；免费公开资料查询暂时不可用，因此未知城市不会被编造成真实结果。模型、工单、FastAPI 与订票功能均关闭。请勿输入个人信息。";
-        environmentLabel.textContent = "Netlify 合成演示";
-      }
-      return;
-    }
-    environmentLabel.textContent = "公开演示环境";
+  function setPublicCopy() {
+    useFreePublicSources = true;
+    environmentLabel.textContent = "免费公开资料";
+    publicDemoNotice.textContent = "不需要 API Key、账号或绑卡。只用目的地查询公开资料；票价、营业时间和预约要求会变化，出发前请打开资料来源确认。";
   }
 
-  async function detectPublicDemoMode() {
+  async function configureDataSource() {
     if (isStaticBrowserDemo) {
-      enablePublicDemoMode();
+      environmentLabel.textContent = "本地预览";
+      publicDemoNotice.textContent = "这是本地预览，使用项目内置的示例资料；公开网站会自动查询可打开的免费资料来源。";
       return;
     }
+
+    // A public Netlify deployment must never fall back to the old synthetic
+    // route. If free lookup is unavailable, show a clear error instead.
+    if (isNetlifySite) setPublicCopy();
     try {
       const health = await getJson("/health");
-      if (health.public_demo_mode === true) enablePublicDemoMode(health);
+      if (health?.deployment === "netlify_functions" || health?.free_public_sources?.enabled === true) {
+        setPublicCopy();
+      } else if (!isNetlifySite) {
+        environmentLabel.textContent = "本地计划模式";
+      }
     } catch {
-      // A failed status probe must not pretend the current host is public.
+      if (!isNetlifySite) environmentLabel.textContent = "本地计划模式";
     }
-  }
-
-  function cny(value) {
-    const number = Number(value);
-    return Number.isFinite(number)
-      ? new Intl.NumberFormat("zh-CN", { style: "currency", currency: "CNY", maximumFractionDigits: 0 }).format(number)
-      : "—";
-  }
-
-  function plural(value, label) {
-    return `${Number(value) || 0} ${label}`;
   }
 
   function getPlanPayload() {
@@ -189,210 +160,145 @@
       total_budget_cny: Number(document.querySelector("#total-budget").value),
       interests,
       travel_style: document.querySelector('input[name="travel_style"]:checked').value,
-      notes: isPublicDemo ? undefined : document.querySelector("#notes").value.trim() || undefined,
-      create_follow_up_ticket: !isPublicDemo && createFollowUpTicket.checked,
     };
   }
 
   function renderMetrics(plan) {
     const summary = plan.request_summary || {};
     const budget = plan.budget || {};
-    document.querySelector("#metric-row").innerHTML = [
-      [plural(summary.days, "天"), "行程周期"],
-      [plural(summary.travelers, "人"), "出行人数"],
-      [
-        cny(budget.mode === "allocation_framework" ? budget.budget_cap_cny : budget.estimated_total_cny),
-        budget.summary_label || "预计花费",
-      ],
-    ].map(([value, label]) => `<div class="metric"><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></div>`).join("");
+    const total = cnyRange(budget.recommended_range_cny) || cny(budget.estimated_total_cny) || "待查询";
+    const metrics = [
+      [`${Number(summary.days) || 0} 天`, "游玩天数"],
+      [`${Number(summary.travelers) || 0} 人`, "出行人数"],
+      [total, "全程游玩参考"],
+    ];
+    document.querySelector("#metric-row").innerHTML = metrics
+      .map(([value, label]) => `<div class="metric"><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></div>`)
+      .join("");
   }
 
   function renderItinerary(itinerary = []) {
-    document.querySelector("#itinerary-count").textContent = `${itinerary.length} DAYS`;
-    document.querySelector("#itinerary").innerHTML = itinerary.map((day) => {
+    const validDays = Array.isArray(itinerary) ? itinerary : [];
+    document.querySelector("#itinerary-count").textContent = validDays.length ? `${validDays.length} 天` : "";
+    document.querySelector("#itinerary").innerHTML = validDays.map((day) => {
       const items = Array.isArray(day.items) ? day.items : [];
+      const itemHtml = items.map((item) => {
+        const meta = [];
+        if (Number.isFinite(Number(item.estimated_duration_minutes)) && Number(item.estimated_duration_minutes) > 0) {
+          meta.push(`约 ${Math.round(Number(item.estimated_duration_minutes))} 分钟`);
+        }
+        if (Number.isFinite(Number(item.estimated_cost_cny))) {
+          meta.push(`参考 ${cny(item.estimated_cost_cny)}`);
+        }
+        return `<div class="activity">
+          <span class="activity-slot">${escapeHtml(item.slot || "安排")}</span>
+          <div class="activity-content">
+            <strong>${escapeHtml(item.title || "当日游玩安排")}</strong>
+            ${item.description ? `<p>${escapeHtml(item.description)}</p>` : ""}
+            ${meta.length ? `<div class="activity-meta">${escapeHtml(meta.join(" · "))}</div>` : ""}
+          </div>
+        </div>`;
+      }).join("");
       return `<article class="itinerary-day">
-        <div class="day-label">DAY ${escapeHtml(day.day)}</div>
+        <div class="day-label">第 ${escapeHtml(day.day || "") } 天</div>
         <div class="day-content">
-          <h4>${escapeHtml(day.theme || "当日安排")}</h4>
-          ${items.map((item) => `<div class="activity">
-            <span class="activity-slot">${escapeHtml(item.slot || "安排")}</span>
-            <div class="activity-content">
-              <strong>${escapeHtml(item.title || "待确认活动")}</strong>
-              ${item.description ? `<p>${escapeHtml(item.description)}</p>` : ""}
-              <div class="activity-meta">${item.estimated_duration_minutes ? `${escapeHtml(item.estimated_duration_minutes)} 分钟` : ""}${item.estimated_duration_minutes && item.estimated_cost_cny != null ? " · " : ""}${item.estimated_cost_cny != null ? cny(item.estimated_cost_cny) : ""}</div>
-            </div>
-          </div>`).join("") || '<p class="empty-inline">该日暂无细化安排。</p>'}
+          <h4>${escapeHtml(day.theme || "当日游玩安排")}</h4>
+          ${itemHtml || '<p class="empty-inline">这一天暂时没有可安排的公开资料。</p>'}
         </div>
       </article>`;
-    }).join("") || '<p class="empty-inline">没有返回行程数据。</p>';
+    }).join("");
   }
 
   function renderBudget(budget = {}) {
     const items = Array.isArray(budget.line_items) ? budget.line_items : [];
+    const range = cnyRange(budget.recommended_range_cny);
     document.querySelector("#budget-currency").textContent = budget.currency || "CNY";
+    document.querySelector("#budget-scope").textContent = budget.scope || "景区、餐饮、市内短途出行和小额伴手礼；不含往返交通与住宿。";
     document.querySelector("#budget").innerHTML = `${items.map((item) => `<div class="budget-item">
-      <div><strong>${escapeHtml(item.category || "其他")}</strong>${item.assumption ? `<small>${escapeHtml(item.assumption)}</small>` : ""}</div>
-      <span class="budget-amount">${cny(item.amount_cny)}</span>
+      <div><strong>${escapeHtml(item.category || "游玩支出")}</strong>${item.assumption ? `<small>${escapeHtml(item.assumption)}</small>` : ""}</div>
+      ${cny(item.amount_cny) ? `<span class="budget-amount">${cny(item.amount_cny)}</span>` : ""}
     </div>`).join("")}
-    ${budget.notice ? `<p class="budget-notice">${escapeHtml(budget.notice)}</p>` : ""}
-    <div class="budget-total"><span>${escapeHtml(budget.total_label || "预计总计")}</span><span>${cny(budget.mode === "allocation_framework" ? budget.budget_cap_cny : budget.estimated_total_cny)}</span></div>`;
-  }
+    <div class="budget-total"><span>${escapeHtml(budget.total_label || "全程游玩参考")}</span><span>${escapeHtml(range || cny(budget.estimated_total_cny) || "")}</span></div>`;
 
-  function renderTrace(trace = []) {
-    document.querySelector("#workflow-trace").innerHTML = trace.map((entry) => `<li>
-      <strong>${escapeHtml(entry.step || "处理步骤")}</strong>
-      <span>${escapeHtml(entry.detail || entry.status || "已完成")}</span>
-    </li>`).join("") || '<li><strong>暂无轨迹</strong><span>服务未返回工作流明细。</span></li>';
+    const notice = budget.notice || "费用会随季节、购票方式和实际消费变化。";
+    travelTip.hidden = false;
+    travelTip.textContent = `提示：${notice}`;
   }
 
   function renderCitations(citations = []) {
-    document.querySelector("#citation-count").textContent = `${citations.length} SOURCES`;
-    document.querySelector("#citations").innerHTML = citations.map((source) => {
+    const sources = Array.isArray(citations) ? citations.filter((source) => source && (source.title || source.uri)) : [];
+    sourcesSection.hidden = sources.length === 0;
+    if (!sources.length) {
+      document.querySelector("#citations").innerHTML = "";
+      return;
+    }
+    document.querySelector("#citation-count").textContent = `${sources.length} 条`;
+    document.querySelector("#citations").innerHTML = sources.map((source) => {
       const href = safeUrl(source.uri);
-      const title = escapeHtml(source.title || source.source_id || "参考资料");
-      const heading = href ? `<a href="${escapeHtml(href)}" target="_blank" rel="noreferrer">${title} ↗</a>` : `<strong>${title}</strong>`;
-      return `<article class="citation"><div class="citation-top">${heading}<span class="citation-relevance">${escapeHtml(source.relevance || "参考")}</span></div>${source.excerpt ? `<p>${escapeHtml(source.excerpt)}</p>` : ""}</article>`;
-    }).join("") || '<p class="empty-inline">本次方案未返回可展示的来源。</p>';
+      const title = escapeHtml(source.title || "公开资料");
+      const heading = href
+        ? `<a href="${escapeHtml(href)}" target="_blank" rel="noreferrer">${title} <span aria-hidden="true">↗</span></a>`
+        : `<strong>${title}</strong>`;
+      return `<article class="citation">
+        <div class="citation-top">${heading}${href ? '<span class="citation-relevance">打开资料</span>' : ""}</div>
+        ${source.excerpt ? `<p>${escapeHtml(source.excerpt)}</p>` : ""}
+      </article>`;
+    }).join("");
   }
 
-  function renderRetrieval(retrieval) {
-    const section = document.querySelector("#retrieval-section");
-    if (!retrieval || typeof retrieval !== "object") {
-      section.hidden = true;
-      return;
-    }
-    section.hidden = false;
-    const sourceCount = Number(retrieval.source_count) || 0;
-    const statusLabel = {
-      public_sources: "免费公开资料",
-      cache_hit: "短时缓存",
-      no_results: "未找到来源",
-    }[retrieval.status] || "待核验";
-    document.querySelector("#retrieval-badge").textContent = statusLabel;
-    const detail = [
-      ["来源", retrieval.provider || "—"],
-      ["条数", `${sourceCount} 条`],
-      ["获取时间", retrieval.retrieved_at ? new Date(retrieval.retrieved_at).toLocaleString("zh-CN", { hour12: false }) : "—"],
-      ["缓存", retrieval.cache_age_seconds ? `${retrieval.cache_age_seconds} 秒` : "本次请求"],
-    ];
-    document.querySelector("#retrieval-metadata").innerHTML = detail
-      .map(([label, value]) => `<span><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></span>`)
-      .join("");
-    const notices = Array.isArray(retrieval.notices) ? retrieval.notices : [];
-    document.querySelector("#retrieval-notices").innerHTML = notices.length
-      ? `<ul>${notices.map((notice) => `<li>${escapeHtml(notice)}</li>`).join("")}</ul>`
-      : "";
-  }
-
-  function modelFallbackMessage(code) {
-    const messages = {
-      llm_disabled: "模型增强未启用，已返回确定性方案。",
-      missing_api_key: "服务端未配置模型密钥，已返回确定性方案。",
-      missing_model: "服务端未配置模型标识，已返回确定性方案。",
-      invalid_base_url: "模型服务配置无效，已返回确定性方案。",
-      knowledge_empty: "未找到同城受控资料，未调用模型。",
-      validation_not_passed: "预算或日程校验未通过，未调用模型。",
-      provider_auth_failed: "模型服务鉴权失败，已保留确定性方案。",
-      provider_payment_required: "模型服务额度不可用，已保留确定性方案。",
-      provider_rate_limited: "模型服务暂时限流，已保留确定性方案。",
-      provider_timeout: "模型服务超时，已保留确定性方案。",
-      provider_network_error: "模型服务网络不可用，已保留确定性方案。",
-      provider_unavailable: "模型服务暂不可用，已保留确定性方案。",
-      invalid_provider_json: "模型输出格式未通过校验，已保留确定性方案。",
-      truncated_provider_response: "模型输出不完整，已保留确定性方案。",
-      untrusted_provider_output: "模型输出未通过来源校验，已保留确定性方案。",
-      static_demo_no_model: "静态公开演示不调用模型，已返回浏览器内确定性预览。",
-    };
-    return messages[code] || "未采用模型说明，已保留确定性方案。";
-  }
-
-  function renderModelNarrative(plan) {
-    const section = document.querySelector("#model-narrative-section");
-    const generation = plan.generation;
-    if (!generation || typeof generation !== "object") {
-      section.hidden = true;
-      return;
-    }
-
-    section.hidden = false;
-    const badge = document.querySelector("#model-generation-badge");
-    const metadata = document.querySelector("#model-generation");
-    const content = document.querySelector("#model-narrative");
-    const enhanced = generation.mode === "llm_augmented";
-    badge.textContent = enhanced ? "已通过来源校验" : "确定性降级";
-    badge.className = `count-pill ${enhanced ? "model-ready" : "model-fallback"}`;
-
-    const metadataItems = [
-      ["模式", enhanced ? "模型增强" : "确定性结果"],
-      ["模型", generation.model || "未调用"],
-      ["提示词", generation.prompt_version || "—"],
-      ["调用", `${Number(generation.attempts) || 0} 次`],
-    ];
-    if (Number.isFinite(Number(generation.llm_latency_ms))) {
-      metadataItems.push(["模型耗时", `${Math.round(Number(generation.llm_latency_ms))} ms`]);
-    }
-    if (generation.usage?.total_tokens != null) {
-      metadataItems.push(["Token", String(generation.usage.total_tokens)]);
-    }
-    metadata.innerHTML = metadataItems.map(([label, value]) => `<span><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></span>`).join("");
-
-    const narrative = plan.narrative;
-    if (!enhanced || !narrative || typeof narrative !== "object") {
-      content.innerHTML = `<p class="model-fallback-copy">${escapeHtml(modelFallbackMessage(generation.fallback_code))}</p>`;
-      return;
-    }
-
-    const notes = Array.isArray(narrative.day_notes) ? narrative.day_notes : [];
-    const caveats = Array.isArray(narrative.caveats) ? narrative.caveats : [];
-    content.innerHTML = `
-      <p class="model-overview">${escapeHtml(narrative.overview || "已生成受控模型说明。")}</p>
-      <div class="model-notes">${notes.map((note) => `<article class="model-note">
-        <strong>DAY ${escapeHtml(note.day)}</strong>
-        <div><b>${escapeHtml(note.theme || "当日说明")}</b><p>${escapeHtml(note.rationale || "")}</p><small>来源：${escapeHtml((note.source_ids || []).join(", "))}</small></div>
-      </article>`).join("")}</div>
-      ${caveats.length ? `<ul class="model-caveats">${caveats.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
-    `;
+  function renderNoSourcePlan(summary = {}) {
+    document.querySelector("#summary-label").textContent = summary.destination || "旅行计划";
+    document.querySelector("#summary-title").textContent = "暂未查到可用资料";
+    document.querySelector("#plan-badge").textContent = "换个名称再试";
+    document.querySelector("#metric-row").innerHTML = "";
+    document.querySelector("#itinerary-count").textContent = "";
+    document.querySelector("#itinerary").innerHTML = `<div class="no-result">
+      <strong>暂时没有找到能直接用于行程的公开资料。</strong>
+      <p>可以试试输入“上饶市”而不是简称，或输入更具体的县城、景区名称；稍后再试也可以。</p>
+    </div>`;
+    itinerarySection.hidden = false;
+    budgetSection.hidden = true;
+    travelTip.hidden = true;
+    sourcesSection.hidden = true;
   }
 
   function renderPlan(plan) {
     const summary = plan.request_summary || {};
-    const validation = plan.validation || {};
-    lastPlanId = plan.plan_id || null;
-    document.querySelector("#summary-label").textContent = `${summary.destination || "目的地"} · ${summary.travel_style || "行程"}`;
-    document.querySelector("#summary-title").textContent = `${summary.destination || "旅行"}${summary.days ? ` ${summary.days} 日运营方案` : "运营方案"}`;
-    const badge = document.querySelector("#validation-badge");
-    const validationText = validation.passed ? "预算与覆盖已校验" : validation.issues?.length ? "需要人工复核" : "已生成";
-    badge.textContent = validationText;
-    badge.className = `validation-badge ${validation.passed ? "passed" : validation.issues?.length ? "issue" : ""}`;
-    renderMetrics(plan);
-    renderItinerary(plan.itinerary);
-    renderBudget(plan.budget);
-    renderTrace(plan.workflow_trace);
-    renderModelNarrative(plan);
-    renderRetrieval(plan.retrieval);
-    renderCitations(plan.citations);
-
-    const ticket = plan.ticket;
-    const ticketBanner = document.querySelector("#plan-ticket");
-    if (ticket?.ticket_id) {
-      ticketBanner.hidden = false;
-      ticketBanner.innerHTML = `已创建跟进工单：<code>${escapeHtml(ticket.ticket_id)}</code>。该请求已交给模拟服务队列。`;
-    } else {
-      ticketBanner.hidden = true;
-      ticketBanner.textContent = "";
-    }
+    const citations = Array.isArray(plan.citations) ? plan.citations : [];
+    const sourceCount = Number(plan.retrieval?.source_count) || citations.length;
 
     emptyState.hidden = true;
     planOutput.hidden = false;
-    resultState.textContent = validation.passed ? "校验通过" : "已生成 · 待复核";
-    resultState.className = `result-state ${validation.passed ? "ready" : "review"}`;
+    if (!sourceCount) {
+      renderNoSourcePlan(summary);
+      resultState.textContent = "暂未查到资料";
+      resultState.className = "result-state";
+      return false;
+    }
 
-    // On narrow screens the result sits below the intake form. Move the reader
-    // directly to the newly generated evidence without changing desktop flow.
+    document.querySelector("#summary-label").textContent = `${summary.destination || "目的地"} · ${styleLabel(summary.travel_style)}`;
+    document.querySelector("#summary-title").textContent = `${summary.destination || "目的地"}${summary.days ? ` ${summary.days} 日旅行计划` : "旅行计划"}`;
+    document.querySelector("#plan-badge").textContent = "旅行建议";
+    itinerarySection.hidden = false;
+    budgetSection.hidden = false;
+    renderMetrics(plan);
+    renderItinerary(plan.itinerary);
+    renderBudget(plan.budget);
+    renderCitations(citations);
+    resultState.textContent = "计划已生成";
+    resultState.className = "result-state ready";
+
     if (window.matchMedia("(max-width: 900px)").matches) {
       planOutput.scrollIntoView({ behavior: "smooth", block: "start" });
     }
+    return true;
+  }
+
+  function friendlyError(error) {
+    if (error?.status === 429) return "查询次数较多，请等一分钟后再试。";
+    if (error?.status === 504) return "公开资料查询超时，请稍后再试。";
+    if (error?.status >= 500) return "公开资料服务暂时不可用，请稍后再试。";
+    return "暂时无法生成计划，请检查目的地名称后重试。";
   }
 
   planForm.addEventListener("submit", async (event) => {
@@ -400,81 +306,33 @@
     if (!planForm.reportValidity()) return;
     const payload = getPlanPayload();
     if (!payload.destination) {
-      setStatus(planStatus, "请填写目的地。", "error");
+      setStatus("请填写目的地。", "error");
       document.querySelector("#destination").focus();
       return;
     }
 
-    const requestingLive = liveRetrievalEnabled && useLiveRetrieval.checked;
-    const requestingModel = !requestingLive && useModelEnhancement.checked;
-    setStatus(
-      planStatus,
-      requestingLive
-        ? "正在免费查询公开资料并生成待核验方案…"
-        : requestingModel
-          ? "正在生成并校验受控模型说明…"
-          : "正在从受控知识库检索并生成结构化方案…"
-    );
-    setButtonLoading(planButton, true, "正在生成");
+    const useFreeRoute = useFreePublicSources;
+    setStatus(useFreeRoute ? "正在查询免费公开资料，整理旅行计划…" : "正在整理旅行计划…");
+    setButtonLoading(true);
     resultState.textContent = "生成中";
     resultState.className = "result-state";
     try {
-      const plan = await postJson(requestingLive ? API.freePlan : requestingModel ? API.modelPlan : API.plan, payload);
-      renderPlan(plan);
-      const extra = plan.validation?.issues?.length ? " 已标注需要人工复核的事项。" : "";
-      const modelExtra = requestingModel
-        ? plan.generation?.mode === "llm_augmented"
-          ? " 模型说明已通过来源校验。"
-          : " 模型未被采用，已保留确定性结果。"
-        : "";
-      const liveExtra = requestingLive
-        ? ` 已返回 ${Number(plan.retrieval?.source_count) || 0} 条免费公开资料来源，请逐条打开核验。`
-        : "";
-      setStatus(planStatus, `方案 ${plan.plan_id || ""} 已生成。${extra}${modelExtra}${liveExtra}`, "success");
+      const plan = await postJson(useFreeRoute ? API.freePlan : API.plan, payload);
+      const hasSources = renderPlan(plan);
+      setStatus(
+        hasSources
+          ? `已整理 ${Number(plan.retrieval?.source_count) || plan.citations?.length || 0} 条公开资料，点击下方资料可查看原文。`
+          : "暂未查到公开资料，请试试更具体的城市、县城或景区名称。",
+        hasSources ? "success" : "error",
+      );
     } catch (error) {
-      const message = error instanceof Error ? error.message : "暂时无法生成方案，请检查服务是否已启动。";
-      setStatus(planStatus, `生成失败：${message}`, "error");
+      setStatus(friendlyError(error), "error");
       resultState.textContent = "等待重试";
-      resultState.className = "result-state review";
+      resultState.className = "result-state";
     } finally {
-      setButtonLoading(planButton, false);
+      setButtonLoading(false);
     }
   });
 
-  ticketForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    if (isPublicDemo) {
-      setStatus(ticketStatus, "公开演示已关闭工单读写，请勿提交个人信息。", "error");
-      return;
-    }
-    if (!ticketForm.reportValidity()) return;
-    const title = document.querySelector("#ticket-title").value.trim();
-    const description = document.querySelector("#ticket-description").value.trim();
-    if (!title || !description) {
-      setStatus(ticketStatus, "请补齐工单标题和问题说明。", "error");
-      return;
-    }
-
-    const payload = {
-      title,
-      description,
-      priority: document.querySelector("#ticket-priority").value,
-      source_plan_id: lastPlanId || undefined,
-      metadata: { channel: "travelops-controlled-demo-ui" },
-    };
-    setStatus(ticketStatus, "正在创建工单…");
-    setButtonLoading(ticketButton, true, "正在创建");
-    try {
-      const ticket = await postJson(API.tickets, payload);
-      setStatus(ticketStatus, `工单已创建：${ticket.ticket_id || "已受理"}`, "success");
-      ticketForm.reset();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "请确认服务是否已启动。";
-      setStatus(ticketStatus, `创建失败：${message}`, "error");
-    } finally {
-      setButtonLoading(ticketButton, false);
-    }
-  });
-
-  void detectPublicDemoMode();
+  void configureDataSource();
 })();

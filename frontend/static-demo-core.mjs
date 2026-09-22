@@ -131,11 +131,11 @@ function makeItinerary(selected, days, conservative = false) {
   if (!selected.length) {
     return Array.from({ length: days }, (_, index) => ({
       day: index + 1,
-      theme: "自由活动与人工确认",
+      theme: "当地慢游安排",
       items: [{
         slot: "全天",
-        title: "待人工确认的本地活动",
-        description: "本地合成资料未返回同城可引用点位，建议人工补充资料后再生成方案。",
+        title: "暂不推荐具体景点",
+        description: "内置示例资料没有查到同城地点，因此不会用其他城市的景点凑行程；请换一个更具体的目的地名称后再试。",
         estimated_duration_minutes: 180,
         estimated_cost_cny: 0,
         source_id: "manual-review",
@@ -201,8 +201,8 @@ function validatePlan({ itinerary, budget, retrieved, days, revisionCount, revis
   }
   if (!coverageOk) {
     issues.push(revised
-      ? "修订后仍缺少完整同城资料，需人工补充资料。"
-      : "行程缺少同城可引用资料；需要人工确认。"
+      ? "修订后仍缺少完整同城资料，请换一个更具体的目的地名称。"
+      : "行程缺少同城可引用资料，暂不推荐具体景点。"
     );
   }
   return {
@@ -231,7 +231,7 @@ function deterministicPlanId(request, prefix) {
 function executionCopy(execution) {
   if (execution === "netlify_function") {
     return {
-      idPrefix: "NETLIFY-API",
+      idPrefix: "LOCAL-DEMO",
       location: "Netlify Function",
       plan: "已在 Netlify Function 中生成初版日程和逐项预算估算。",
       revision: "已按低价点位和 budget 示例标准完成唯一一次 Netlify Function 修订。",
@@ -277,7 +277,7 @@ export function buildDeterministicPlan(payload, catalogue, { execution = "browse
   traceEntries.push(trace("plan", copy.plan));
   traceEntries.push(trace(
     "validate",
-    validation.passed ? "预算与日程覆盖校验通过。" : "发现需要人工确认的预算或资料覆盖问题。",
+    validation.passed ? "预算与日程覆盖校验通过。" : "发现预算或资料覆盖不足，已给出保守的本地预览结果。",
     !validation.passed,
   ));
 

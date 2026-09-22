@@ -53,48 +53,104 @@ function trace(step, detail, warning = false) {
 }
 
 function titleForSource(source) {
-  return String(source?.title || source?.source_id || "待核验公开资料").trim();
+  return String(source?.title || source?.source_id || "公开资料中的地点").trim();
 }
 
-function makeEmptyItinerary(request) {
-  return Array.from({ length: request.days }, (_, index) => ({
-    day: index + 1,
-    theme: request.destination + " 第 " + (index + 1) + " 天：等待公开资料补充",
-    items: [{
-      slot: "待补充",
-      title: "未找到能对应目的地的公开资料",
-      description: "系统没有借用其他城市或编造景点；请稍后重试、使用更具体的县市名称，或直接打开本地旅游部门的官方页面核验。",
-      estimated_duration_minutes: null,
-      estimated_cost_cny: null,
-      source_id: "free-public-source-no-result",
-    }],
+function sourceExcerpt(source) {
+  const excerpt = String(source?.excerpt || "").trim();
+  return excerpt || "公开资料页没有可展示的摘要。";
+}
+
+function attractionItem(slot, source) {
+  const title = titleForSource(source);
+  return {
+    slot,
+    title: "游览：" + title,
+    description: sourceExcerpt(source) + " 建议把它安排为当天" + slot + "的主要游览内容；出发前请打开资料页确认开放状态、预约要求、路线和实际花费。",
+    estimated_duration_minutes: null,
+    estimated_cost_cny: null,
+    source_id: source.source_id,
+  };
+}
+
+function lunchItem() {
+  return {
+    slot: "中午",
+    title: "就近安排当地餐饮",
+    description: "按上午活动所在区域选择正餐或当地小吃。本计划不指定餐厅，也不虚构菜单和价格，请以现场信息与个人口味为准。",
+    estimated_duration_minutes: null,
+    estimated_cost_cny: null,
+  };
+}
+
+function flexibleMorningItem() {
+  return {
+    slot: "上午",
+    title: "暂不推荐具体景点",
+    description: "这一天没有查到与目的地对应的公开资料，因此不推荐其他城市的景点。可先留作休息、就近慢游，或换用更具体的县市名称重新生成。",
+    estimated_duration_minutes: null,
+    estimated_cost_cny: null,
+  };
+}
+
+function flexibleAfternoonItem() {
+  return {
+    slot: "下午",
+    title: "慢游与弹性调整",
+    description: "可在上午景点附近继续慢游、休息，或根据天气和体力调整。没有查到可确认的第二个景点时，系统不会用不相关地点补足。",
+    estimated_duration_minutes: null,
+    estimated_cost_cny: null,
+  };
+}
+
+function eveningItem() {
+  return {
+    slot: "晚上",
+    title: "夜间散步与自由觅食",
+    description: "在住宿附近或当天活动区域步行、用餐或选购小纪念品；请以当天营业状态和实际预算为准。",
+    estimated_duration_minutes: null,
+    estimated_cost_cny: null,
+  };
+}
+
+function extraSourceItems(sources) {
+  return sources.map((source) => ({
+    ...attractionItem("可选加项", source),
+    title: "可选加项：" + titleForSource(source),
+    description: sourceExcerpt(source) + " 如当天体力、天气和开放条件合适，可把它加入行程或替换下午的慢游安排；出发前请打开资料页确认细节。",
   }));
 }
 
+function sourcesByDay(sources, days) {
+  const buckets = Array.from({ length: days }, () => []);
+  sources.forEach((source, index) => {
+    buckets[index % days].push(source);
+  });
+  return buckets;
+}
+
+function dayTheme(request, dayIndex, sources) {
+  const first = sources[0];
+  if (first) return request.destination + " · 第 " + (dayIndex + 1) + " 天：从 " + titleForSource(first) + " 开始";
+  return request.destination + " · 第 " + (dayIndex + 1) + " 天：慢游与当地餐饮安排";
+}
+
 function makeItinerary(request, sources) {
-  if (!sources.length) return makeEmptyItinerary(request);
-  const slots = ["上午", "下午"];
-  const perDay = Math.max(1, Math.min(2, Math.ceil(sources.length / request.days)));
-  let cursor = 0;
+  const daySources = sourcesByDay(sources, request.days);
 
   return Array.from({ length: request.days }, (_, dayIndex) => {
-    const daySources = Array.from({ length: perDay }, () => {
-      const source = sources[cursor % sources.length];
-      cursor += 1;
-      return source;
-    });
-    const reused = dayIndex * perDay >= sources.length;
+    const candidates = daySources[dayIndex];
+    const [morningSource, afternoonSource, ...extras] = candidates;
     return {
       day: dayIndex + 1,
-      theme: request.destination + " 第 " + (dayIndex + 1) + " 天：公开资料候选安排",
-      items: daySources.map((source, itemIndex) => ({
-        slot: slots[itemIndex] || "备选",
-        title: titleForSource(source),
-        description: (source.excerpt || "公开资料未提供可展示摘要。") + " 请打开来源页核验地点、开放状态、交通与预约要求。" + (reused ? " 该条目因资料数少于天数而作为延展备选重复展示，并非新增地点。" : ""),
-        estimated_duration_minutes: null,
-        estimated_cost_cny: null,
-        source_id: source.source_id,
-      })),
+      theme: dayTheme(request, dayIndex, candidates),
+      items: [
+        morningSource ? attractionItem("上午", morningSource) : flexibleMorningItem(),
+        lunchItem(),
+        afternoonSource ? attractionItem("下午", afternoonSource) : flexibleAfternoonItem(),
+        eveningItem(),
+        ...extraSourceItems(extras),
+      ],
     };
   });
 }
@@ -139,9 +195,8 @@ function buildBudgetFramework(request) {
 
 function buildValidation(retrieval, budget) {
   const coverageOk = retrieval.source_count > 0;
-  const issues = [
-    "票价、营业时间、餐饮价格、交通和预约信息需要在原始来源页或官方渠道人工核验。",
-  ];
+  const withinBudget = budget.budget_cap_cny >= budget.recommended_range_cny.minimum;
+  const issues = ["票价、营业时间、餐饮价格、交通和预约信息请在出行前通过资料页或官方渠道确认。"];
   if (budget.budget_cap_cny < budget.recommended_range_cny.minimum) {
     issues.unshift("你的游玩预算上限低于该人数、天数和节奏的粗略参考区间，请减少景点或调整预算。");
   } else if (budget.budget_cap_cny < budget.estimated_total_cny) {
@@ -151,8 +206,8 @@ function buildValidation(retrieval, budget) {
     issues.unshift("未找到能对应本次目的地的公开资料，系统没有生成替代城市或虚构景点。");
   }
   return {
-    passed: false,
-    within_budget: null,
+    passed: coverageOk,
+    within_budget: withinBudget,
     coverage_ok: coverageOk,
     pricing_complete: false,
     issues,
@@ -205,23 +260,23 @@ export function buildFreePublicSourcePlan(payload, retrieval) {
     },
     validation,
     workflow_trace: [
-      trace("parse", "已保留目的地用于免费公开资料查询；" + request.interests.length + " 项偏好只用于本次方案结构。"),
+      trace("parse", "已读取目的地、天数、同行人数和旅行偏好。"),
       trace(
         "retrieve_free_public_sources",
         sourceCount
-          ? "从 " + retrieval.provider + " 返回 " + sourceCount + " 条可打开的公开资料（状态：" + retrieval.status + "）。"
-          : "未找到能对应目的地的公开资料，未生成替代城市或虚构景点。",
+          ? "找到 " + sourceCount + " 条可打开的公开资料。"
+          : "暂未找到与目的地对应的公开资料，因此没有加入替代城市或虚构景点。",
         !sourceCount,
       ),
       trace(
         "plan",
         sourceCount
-          ? "已按公开资料顺序组织候选日程；每项均保留来源 ID。"
-          : "因缺少资料，仅保留待补充状态。",
+          ? "已将资料中提及的地点放入上午或下午，并补齐餐饮、慢游和晚间安排。"
+          : "已保留完整的早、中、晚时间框架，等待找到对应地点后再推荐具体景点。",
         !sourceCount,
       ),
-      trace("budget", "已按天数、人数和节奏生成不含往返交通与住宿的参考游玩预算；所有金额都需要行前核验。", true),
-      trace("finalize", "已输出免费、可追溯的资料查询结果；未调用模型、付费搜索、工单、FastAPI 或订票服务。"),
+      trace("budget", "已按天数、人数和节奏生成不含往返交通与住宿的参考游玩预算；实际金额请出行前确认。", true),
+      trace("finalize", "已生成带公开资料链接的旅行计划。"),
     ],
     ticket: null,
   };

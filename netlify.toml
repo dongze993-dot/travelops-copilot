@@ -18,3 +18,26 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
   included_files = ["data/attractions.json"]
+
+# The generated public page refers to stable asset names (index.html, app.js,
+# and styles.css). Require a fresh validation after each deploy so a visitor
+# cannot keep an older interface in a browser cache.
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/app.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/styles.css"
+  [headers.values]
+    Cache-Control = "no-cache"
