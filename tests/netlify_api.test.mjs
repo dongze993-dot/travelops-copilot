@@ -50,6 +50,8 @@ test("Netlify health endpoint describes the bounded public API mode", async () =
   assert.equal(body.public_demo_mode, true);
   assert.equal(body.deployment, "netlify_functions");
   assert.equal(body.model_calls_enabled, false);
+  assert.equal(body.free_public_sources.enabled, true);
+  assert.equal(body.free_public_sources.requires_api_key, false);
 });
 
 test("Netlify endpoints reject an unsupported HTTP method and answer CORS preflight", async () => {

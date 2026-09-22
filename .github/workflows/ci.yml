@@ -19,12 +19,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Install Netlify Function runtime dependency
-        run: npm install --ignore-scripts --no-audit --no-fund
-      - name: Verify Netlify Blobs runtime import
-        run: node --input-type=module -e "await import('@netlify/blobs')"
       - name: Test public demo adapters
-        run: node --test tests/static_demo.test.mjs tests/netlify_api.test.mjs tests/live_retrieval.test.mjs tests/live_query_quota.test.mjs
+        run: node --test tests/static_demo.test.mjs tests/netlify_api.test.mjs tests/free_public_sources.test.mjs
       - name: Build static public artifact
         shell: bash
         run: |
@@ -37,7 +33,6 @@ jobs:
           test -f dist-static-demo/data/attractions.json
           ! grep --fixed-strings --quiet '/frontend/' dist-static-demo/index.html
           ! grep --recursive --fixed-strings --quiet 'DEEPSEEK_API_KEY' dist-static-demo
-          ! grep --recursive --fixed-strings --quiet 'TAVILY_API_KEY' dist-static-demo
       - name: Build Netlify API demo artifact
         shell: bash
         run: |
@@ -50,7 +45,6 @@ jobs:
           ! grep --fixed-strings --quiet '/frontend/' dist-netlify-demo/index.html
           ! grep --fixed-strings --quiet 'TRAVELOPS_STATIC_DEMO' dist-netlify-demo/index.html
           ! grep --recursive --fixed-strings --quiet 'DEEPSEEK_API_KEY' dist-netlify-demo
-          ! grep --recursive --fixed-strings --quiet 'TAVILY_API_KEY' dist-netlify-demo
 
   test:
     name: Python ${{ matrix.python-version }}
