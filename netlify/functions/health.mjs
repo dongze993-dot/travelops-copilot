@@ -1,5 +1,5 @@
 import { internalError, jsonResponse, methodGuard, recordCount } from "../serverless-api-core.mjs";
-import { publicLiveRetrievalStatus } from "../live-retrieval-core.mjs";
+import { publicFreePublicSourceStatus } from "../free-public-sources-core.mjs";
 
 export default async function health(request) {
   const guard = methodGuard(request, ["GET"]);
@@ -12,7 +12,7 @@ export default async function health(request) {
       public_demo_mode: true,
       deployment: "netlify_functions",
       model_calls_enabled: false,
-      live_retrieval: publicLiveRetrievalStatus(),
+      free_public_sources: publicFreePublicSourceStatus(),
     });
   } catch {
     return internalError();

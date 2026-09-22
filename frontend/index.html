@@ -86,7 +86,7 @@
               </label>
 
               <label class="field">
-                <span>总预算（元）<b>*</b></span>
+                <span>你的游玩预算上限（元，不含往返交通与住宿）<b>*</b></span>
                 <input
                   id="total-budget"
                   name="total_budget_cny"
@@ -94,7 +94,7 @@
                   min="0.01"
                   max="100000"
                   step="0.01"
-                  value="5000"
+                  value="2500"
                   required
                 />
               </label>
@@ -132,11 +132,11 @@
 
             <div id="live-retrieval-option" class="live-retrieval-option">
               <label class="toggle-label">
-                <input id="use-live-retrieval" type="checkbox" disabled />
+                <input id="use-live-retrieval" type="checkbox" checked />
                 <span class="toggle-track" aria-hidden="true"><span></span></span>
                 <span>
-                  <strong>联网检索公开网页来源</strong>
-                  <small id="live-retrieval-help">正在检查联网检索是否已由部署管理员配置。</small>
+                  <strong>免费联网查找公开资料</strong>
+                  <small id="live-retrieval-help">无需账号、绑卡或 API Key；会返回可打开的中文公开资料来源。</small>
                 </span>
               </label>
             </div>

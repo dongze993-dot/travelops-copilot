@@ -111,15 +111,15 @@ export async function readPublicPlanPayload(request) {
 
 /**
  * Live search has a smaller data boundary than the deterministic demo. This
- * projection ensures only destination and selected interests ever reach an
- * external provider. In particular, notes are never silently forwarded.
+ * projection ensures only the destination reaches the free public-source
+ * endpoints. In particular, notes are never silently forwarded.
  */
-export async function readLivePlanPayload(request) {
+export async function readFreePublicPlanPayload(request) {
   const payload = await readPublicPlanPayload(request);
   if (payload instanceof Response) return payload;
   if (typeof payload.notes === "string" && payload.notes.trim()) {
     return jsonResponse(
-      { detail: "联网检索不接收补充说明；请勿输入个人信息。", code: "live_retrieval_notes_not_allowed" },
+{ detail: "免费公开资料查询不接收补充说明；请勿输入个人信息。", code: "free_public_source_notes_not_allowed" },
       422,
     );
   }
@@ -134,7 +134,7 @@ export async function readLivePlanPayload(request) {
   };
 }
 
-export function readLiveAttractionQuery(url) {
+export function readFreePublicAttractionQuery(url) {
   const destination = url.searchParams.get("destination")?.trim() || "";
   if (!destination || destination.length > 80) {
     return jsonResponse({ detail: "destination 必须是 1 到 80 个字符。" }, 422);

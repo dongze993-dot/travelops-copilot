@@ -1,24 +1,25 @@
 import {
   jsonResponse,
   methodGuard,
-  readLiveAttractionQuery,
+  readFreePublicAttractionQuery,
 } from "../serverless-api-core.mjs";
 import {
-  liveRetrievalErrorPayload,
-  retrieveLiveTravelSources,
-} from "../live-retrieval-core.mjs";
+  freePublicSourceErrorPayload,
+  retrieveFreePublicTravelSources,
+} from "../free-public-sources-core.mjs";
 
 /**
- * GET is intentionally query-only: it can receive CDN caching without storing
- * free-text notes or a request body. The provider key remains server-only.
+ * Query-only route: it never accepts notes or personal information. Netlify
+ * may cache this GET response briefly to reduce repeated requests to the
+ * free public sources.
  */
-export default async function liveAttractions(request) {
+export default async function freeAttractions(request) {
   const guard = methodGuard(request, ["GET"]);
   if (guard) return guard;
   try {
-    const payload = readLiveAttractionQuery(new URL(request.url));
+    const payload = readFreePublicAttractionQuery(new URL(request.url));
     if (payload instanceof Response) return payload;
-    const retrieval = await retrieveLiveTravelSources({
+    const retrieval = await retrieveFreePublicTravelSources({
       destination: payload.destination,
       interests: payload.interests,
       requested_limit: payload.requested_limit,
@@ -31,7 +32,7 @@ export default async function liveAttractions(request) {
       source_title: source.title,
       price_cny: null,
       query_destination: retrieval.destination,
-      live_web: true,
+      free_public_source: true,
     }));
     return jsonResponse({
       destination: retrieval.destination,
@@ -47,18 +48,16 @@ export default async function liveAttractions(request) {
         notices: retrieval.notices,
       },
     }, 200, {
-      // Netlify's durable CDN cache applies only to this idempotent, query-only
-      // endpoint; the POST planner remains no-store.
       "netlify-cdn-cache-control": "public, durable, max-age=300, stale-while-revalidate=300",
     });
   } catch (error) {
-    const handled = liveRetrievalErrorPayload(error);
+    const handled = freePublicSourceErrorPayload(error);
     return jsonResponse(handled.body, handled.status);
   }
 }
 
 export const config = {
-  path: "/api/v3/live-attractions",
+  path: "/api/v3/free-attractions",
   rateLimit: {
     windowLimit: 3,
     windowSize: 60,

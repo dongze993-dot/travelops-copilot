@@ -6,7 +6,7 @@
   const API = {
     plan: "/api/v1/plans",
     modelPlan: "/api/v2/plans",
-    livePlan: "/api/v3/live-plans",
+    freePlan: "/api/v3/free-plans",
     tickets: "/api/v1/tickets",
   };
   const isStaticBrowserDemo = window.TRAVELOPS_STATIC_DEMO === true;
@@ -137,17 +137,17 @@
       useModelEnhancement.closest(".model-option").hidden = true;
     }
     if (health.deployment === "netlify_functions") {
-      liveRetrievalEnabled = health.live_retrieval?.enabled === true;
+      liveRetrievalEnabled = health.free_public_sources?.enabled === true;
       useLiveRetrieval.checked = liveRetrievalEnabled;
       useLiveRetrieval.disabled = !liveRetrievalEnabled;
       liveRetrievalOption.hidden = false;
       if (liveRetrievalEnabled) {
-        liveRetrievalHelp.textContent = "仅服务端向检索服务发送目的地和选中的偏好；结果附可打开来源，票价与营业状态仍需核验。";
-        publicDemoNotice.innerHTML = "<strong>Netlify API 联网检索演示：</strong>开启联网检索后，Serverless Function 会将目的地和选中的偏好发送给外部检索服务，并返回可打开的网页来源；模型、工单、FastAPI 与订票功能仍关闭。请勿输入个人信息。";
-        environmentLabel.textContent = "Netlify 联网检索演示";
+        liveRetrievalHelp.textContent = "免费查询中文维基导游和中文维基百科的公开资料；无需账号、绑卡或 API Key。票价与营业状态仍需核验。";
+        publicDemoNotice.innerHTML = "<strong>免费联网资料演示：</strong>仅查询目的地，选中的偏好只用于本次方案结构；返回可打开的中文公开资料来源，不调用 DeepSeek、模型、付费搜索、工单、FastAPI 或订票功能。请勿输入个人信息。";
+        environmentLabel.textContent = "免费联网资料演示";
       } else {
-        liveRetrievalHelp.textContent = "联网检索尚未由部署管理员配置；当前只能运行本地合成演示，未知城市不会被编造成真实结果。";
-        publicDemoNotice.innerHTML = "<strong>Netlify API 演示：</strong>当前仅返回合成数据的确定性结果；联网检索尚未配置，因此未知城市不会被编造成真实结果。模型、工单、FastAPI 与订票功能均关闭。请勿输入个人信息。";
+        liveRetrievalHelp.textContent = "免费公开资料查询暂时不可用；当前只能运行本地合成演示，未知城市不会被编造成真实结果。";
+        publicDemoNotice.innerHTML = "<strong>Netlify API 演示：</strong>当前仅返回合成数据的确定性结果；免费公开资料查询暂时不可用，因此未知城市不会被编造成真实结果。模型、工单、FastAPI 与订票功能均关闭。请勿输入个人信息。";
         environmentLabel.textContent = "Netlify 合成演示";
       }
       return;
@@ -265,7 +265,7 @@
     section.hidden = false;
     const sourceCount = Number(retrieval.source_count) || 0;
     const statusLabel = {
-      live: "实时检索",
+      public_sources: "免费公开资料",
       cache_hit: "短时缓存",
       no_results: "未找到来源",
     }[retrieval.status] || "待核验";
@@ -410,7 +410,7 @@
     setStatus(
       planStatus,
       requestingLive
-        ? "正在联网检索公开网页来源并生成待核验方案…"
+        ? "正在免费查询公开资料并生成待核验方案…"
         : requestingModel
           ? "正在生成并校验受控模型说明…"
           : "正在从受控知识库检索并生成结构化方案…"
@@ -419,7 +419,7 @@
     resultState.textContent = "生成中";
     resultState.className = "result-state";
     try {
-      const plan = await postJson(requestingLive ? API.livePlan : requestingModel ? API.modelPlan : API.plan, payload);
+      const plan = await postJson(requestingLive ? API.freePlan : requestingModel ? API.modelPlan : API.plan, payload);
       renderPlan(plan);
       const extra = plan.validation?.issues?.length ? " 已标注需要人工复核的事项。" : "";
       const modelExtra = requestingModel
@@ -428,7 +428,7 @@
           : " 模型未被采用，已保留确定性结果。"
         : "";
       const liveExtra = requestingLive
-        ? ` 已返回 ${Number(plan.retrieval?.source_count) || 0} 条联网来源，请逐条打开核验。`
+        ? ` 已返回 ${Number(plan.retrieval?.source_count) || 0} 条免费公开资料来源，请逐条打开核验。`
         : "";
       setStatus(planStatus, `方案 ${plan.plan_id || ""} 已生成。${extra}${modelExtra}${liveExtra}`, "success");
     } catch (error) {

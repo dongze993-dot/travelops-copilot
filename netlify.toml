@@ -10,8 +10,8 @@
   # Node-only adapter build. Pin a supported interpreter so its automatic
   # dependency preparation uses published pydantic-core wheels instead of
   # attempting a Rust source build.
-  # @netlify/blobs 11.x requires Node.js 22.12.0 or newer.
-  NODE_VERSION = "22.12.0"
+  # The public adapter is a small Node-only Function implementation.
+  NODE_VERSION = "22"
   PYTHON_VERSION = "3.12"
 
 [functions]
