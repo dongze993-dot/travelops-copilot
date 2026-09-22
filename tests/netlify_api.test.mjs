@@ -106,7 +106,7 @@ test("Netlify v1 plan is a deterministic, renderer-compatible public result", as
   const { response, body: plan } = await postPlan(planV1, planningPayload({ notes: privateNote }));
 
   assert.equal(response.status, 200);
-  assert.match(plan.plan_id, /^NETLIFY-API-/);
+  assert.match(plan.plan_id, /^LOCAL-DEMO-/);
   assert.equal(plan.ticket, null);
   assert.equal(plan.request_summary.destination, "成都");
   assert.equal(plan.itinerary.length, 2);

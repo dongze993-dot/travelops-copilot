@@ -206,6 +206,14 @@ test("free-source plan retains citations and limits its budget to in-destination
   assert.equal(plan.request_summary.mock_mode, false);
   assert.equal(plan.request_summary.data_mode, "free_public_sources");
   assert.equal(plan.itinerary.length, 2);
+  assert.ok(plan.itinerary.every((day) => day.items.length >= 4));
+  assert.deepEqual(
+    plan.itinerary.map((day) => day.items.slice(0, 4).map((item) => item.slot)),
+    [["上午", "中午", "下午", "晚上"], ["上午", "中午", "下午", "晚上"]],
+  );
+  assert.match(plan.itinerary[0].items[0].title, /^游览：上饶候选一$/);
+  assert.match(plan.itinerary[0].items[1].description, /不指定餐厅/);
+  assert.match(plan.itinerary[0].items[3].description, /实际预算/);
   assert.ok(plan.itinerary.flatMap((day) => day.items).every((item) => item.estimated_cost_cny === null));
   assert.equal(plan.budget.mode, "rough_estimate");
   assert.equal(plan.budget.pricing_complete, false);
@@ -214,12 +222,29 @@ test("free-source plan retains citations and limits its budget to in-destination
   assert.ok(plan.budget.recommended_range_cny.minimum < plan.budget.estimated_total_cny);
   assert.ok(plan.budget.recommended_range_cny.maximum > plan.budget.estimated_total_cny);
   assert.equal(plan.budget.line_items.some((item) => item.category.includes("住宿")), false);
-  assert.equal(plan.validation.passed, false);
+  assert.equal(plan.validation.passed, true);
   assert.deepEqual(
-    new Set(plan.itinerary.flatMap((day) => day.items.map((item) => item.source_id))),
+    new Set(plan.itinerary.flatMap((day) => day.items.map((item) => item.source_id).filter(Boolean))),
     new Set(["zh-wikivoyage-A", "zh-wikipedia-B"]),
   );
+  assert.equal(JSON.stringify(plan).includes("人工"), false);
   assert.ok(plan.workflow_trace.some((entry) => entry.step === "retrieve_free_public_sources"));
+});
+
+test("free-source plan keeps a complete schedule when public sources are unavailable", () => {
+  const plan = buildFreePublicSourcePlan(planningPayload(), {
+    mode: "free_public_sources",
+    provider: "中文维基导游 / 中文维基百科",
+    status: "no_results",
+    source_count: 0,
+    sources: [],
+  });
+
+  assert.equal(plan.validation.passed, false);
+  assert.equal(plan.validation.coverage_ok, false);
+  assert.ok(plan.itinerary.every((day) => day.items.length === 4));
+  assert.ok(plan.itinerary.every((day) => day.items[0].title === "暂不推荐具体景点"));
+  assert.equal(JSON.stringify(plan).includes("人工"), false);
 });
 
 test("free public API routes accept safe inputs, block notes, and keep rate limits", async () => {
