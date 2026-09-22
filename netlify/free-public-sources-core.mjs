@@ -28,6 +28,7 @@ const MAX_INTERESTS = 8;
 const MAX_INTEREST_LENGTH = 40;
 const MAX_DESTINATION_LENGTH = 80;
 const NON_VISIT_TITLE_PATTERN = /(轨道交通|交通体系|经济带|铁路|高速公路|规划|集中营|行政区划|学校|政府|公司|列表)/u;
+const GENERIC_ADMIN_TITLE_PATTERN = /(自治州|自治县|市|区|县|地区|盟)$/u;
 const processCache = new Map();
 
 export class FreePublicSourceError extends Error {
@@ -76,7 +77,9 @@ function pageMatchesDestination(page, destination) {
 
 function isVisitCandidate(page, destination) {
   const title = cleanText(page?.title, 160);
-  return pageMatchesDestination(page, destination) && !NON_VISIT_TITLE_PATTERN.test(title);
+  return pageMatchesDestination(page, destination)
+    && !NON_VISIT_TITLE_PATTERN.test(title)
+    && !GENERIC_ADMIN_TITLE_PATTERN.test(title);
 }
 
 function safeSourceUrl(value, provider) {
