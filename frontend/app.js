@@ -42,8 +42,9 @@
   }
 
   function safeUrl(value) {
+    if (typeof value !== "string" || !value.trim()) return "";
     try {
-      const url = new URL(value, window.location.origin);
+      const url = new URL(value.trim());
       return ["http:", "https:"].includes(url.protocol) ? url.href : "";
     } catch {
       return "";
@@ -51,6 +52,7 @@
   }
 
   function cny(value) {
+    if (value === null || value === undefined || value === "") return "";
     const number = Number(value);
     return Number.isFinite(number)
       ? new Intl.NumberFormat("zh-CN", { style: "currency", currency: "CNY", maximumFractionDigits: 0 }).format(number)
@@ -258,7 +260,7 @@
         return `<div class="budget-item">
           <div>
             <strong>${escapeHtml(item.category || "普通出行费用")}</strong>
-            <small>${escapeHtml(evidence || item.assumption || "普通出行估算")}</small>
+            ${evidence ? `<small>${escapeHtml(evidence)}</small>` : ""}
             ${item.assumption ? `<small>${escapeHtml(item.assumption)}</small>` : ""}
             ${href ? `<a class="evidence-link" href="${escapeHtml(href)}" target="_blank" rel="noreferrer">查看费用原文 ↗</a>` : ""}
           </div>
@@ -289,7 +291,7 @@
         : `<strong>${title}</strong>`;
       const tags = Array.isArray(source.matched_interests) && source.matched_interests.length
         ? `<span class="citation-relevance">匹配：${escapeHtml(source.matched_interests.join("、"))}</span>`
-        : (href ? '<span class="citation-relevance">打开资料</span>' : "");
+        : (href ? `<a class="citation-relevance citation-link" href="${escapeHtml(href)}" target="_blank" rel="noreferrer">打开原资料 ↗</a>` : "");
       return `<article class="citation"><div class="citation-top">${heading}${tags}</div>${source.excerpt ? `<p>${escapeHtml(shortText(source.excerpt, 220))}</p>` : ""}</article>`;
     }).join("");
   }
