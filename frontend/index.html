@@ -32,15 +32,15 @@
         <p class="eyebrow">FREE TRAVEL PLAN</p>
         <h1 id="page-title">输入想去的地方，<br /><span>拿到一张旅行计划表。</span></h1>
         <p class="intro-copy">
-          填写目的地、天数和预算，系统会免费查询可打开的中文公开资料，再整理成每天的景点、美食和游玩安排。
+          填写目的地、天数和预算。系统会查询可打开的中文公开资料，再把查到的地点按天放进一张计划表；每条地点和费用都会保留来源链接。
         </p>
         <div class="trust-row" aria-label="计划内容">
           <span>免费公开资料</span>
-          <span>按天安排景点与美食</span>
-          <span>不含往返交通与住宿的预算参考</span>
+          <span>按天整理已查到的地点</span>
+          <span>只显示有出处的费用</span>
         </div>
         <p id="public-demo-notice" class="public-demo-notice">
-          不需要 API Key、账号或绑卡。票价、营业时间和预约要求会变化，出发前请打开资料来源确认。
+          不需要 API Key、账号或绑卡。资料价格、营业时间和预约要求会变化，出发前请打开来源链接确认。
         </p>
       </section>
 
@@ -98,7 +98,7 @@
                 />
               </label>
             </div>
-            <p class="form-hint">预算只估算景区、餐饮、市内短途出行和小额伴手礼，不含往返交通与住宿。</p>
+            <p class="form-hint">预算是你的上限，用于筛选和安排。只有公开资料里能找到出处的价格才会显示为费用；不含往返交通与住宿。</p>
 
             <fieldset class="choice-group">
               <legend>旅行偏好</legend>
@@ -130,7 +130,7 @@
         <section class="result-panel panel" aria-labelledby="result-heading">
           <div class="panel-heading result-heading">
             <div>
-              <p class="section-kicker">02 / 旅行计划</p>
+              <p class="section-kicker">02 / 查询结果</p>
               <h2 id="result-heading">你的旅行计划</h2>
             </div>
             <div id="result-state" class="result-state">等待生成</div>
@@ -144,7 +144,7 @@
               <span class="orbit-dot orbit-c"></span>
             </div>
             <h3>从一个目的地开始</h3>
-            <p>填写想去的城市、县城或景区名称，就能获得景点、美食与每日安排。</p>
+            <p>填写想去的城市、县城或景区名称。系统会先查公开资料，再生成有来源可核对的按天计划。</p>
           </div>
 
           <div id="plan-output" class="plan-output" hidden>
@@ -157,6 +157,7 @@
             </div>
 
             <div id="metric-row" class="metric-row" aria-label="计划摘要"></div>
+            <p id="plan-basis" class="plan-basis"></p>
 
             <section id="itinerary-section" class="result-section itinerary-section" aria-labelledby="itinerary-heading">
               <div class="result-section-heading">
@@ -168,7 +169,7 @@
 
             <section id="budget-section" class="result-section" aria-labelledby="budget-heading">
               <div class="result-section-heading">
-                <h3 id="budget-heading">游玩预算参考</h3>
+                <h3 id="budget-heading">查到的费用与预算</h3>
                 <span id="budget-currency" class="muted-label">CNY</span>
               </div>
               <p id="budget-scope" class="budget-scope"></p>
@@ -179,7 +180,7 @@
 
             <section id="sources-section" class="result-section" aria-labelledby="sources-heading" hidden>
               <div class="result-section-heading">
-                <h3 id="sources-heading">本计划参考资料</h3>
+                <h3 id="sources-heading">本次查询到的资料</h3>
                 <span id="citation-count" class="count-pill"></span>
               </div>
               <div id="citations" class="citation-list"></div>
@@ -190,7 +191,7 @@
     </main>
 
     <footer class="site-footer">
-      <span>TravelOps Copilot · 免费旅行计划</span>
+      <span>旅行计划助手 · 免费公开资料</span>
       <span>只查询公开资料，不收集个人信息</span>
     </footer>
 

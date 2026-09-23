@@ -3,7 +3,7 @@
  *
  * This is deliberately a small, read-only lookup over Chinese Wikivoyage and
  * Chinese Wikipedia. It is not a general web crawler, it does not scrape
- * pages, and it does not call a model or a paid search service.
+ * commercial pages, and it does not call a model or a paid search service.
  */
 
 const PUBLIC_SOURCES = Object.freeze([
@@ -27,8 +27,28 @@ const DEFAULT_CACHE_TTL_SECONDS = 600;
 const MAX_INTERESTS = 8;
 const MAX_INTEREST_LENGTH = 40;
 const MAX_DESTINATION_LENGTH = 80;
+const MAX_SEARCH_QUERIES_PER_PROVIDER = 4;
+const MAX_ENRICHED_PAGES_PER_PROVIDER = 3;
+const MAX_SOURCE_EXCERPT_LENGTH = 640;
+const MAX_EXTRACT_CHARS = 1_200;
+const MAX_PRICE_EVIDENCE_PER_SOURCE = 3;
+const MAX_PRICE_EVIDENCE_DETAIL_LENGTH = 220;
 const NON_VISIT_TITLE_PATTERN = /(轨道交通|交通体系|经济带|铁路|高速公路|规划|集中营|行政区划|学校|政府|公司|列表)/u;
 const GENERIC_ADMIN_TITLE_PATTERN = /(自治州|自治县|市|区|县|地区|盟)$/u;
+const CNY_AMOUNT_PATTERN = /(?:人民币\s*)?(?:[￥¥]\s*(\d{1,5}(?:\.\d{1,2})?)|(\d{1,5}(?:\.\d{1,2})?)\s*元)/gu;
+const PER_PERSON_PATTERN = /(每人|每位|每名|\/\s*人|成人票|学生票|儿童票|全票|半票)/u;
+const PRICE_KINDS = Object.freeze([
+  { pattern: /(门票|票价|成人票|学生票|儿童票|通票|套票|联票|入场费|入园费|参观费|游览费)/u, label: "景点入场费用", admission: true },
+  { pattern: /(索道票|观光车票|景区交通)/u, label: "景区交通费用", admission: false },
+  { pattern: /(人均消费|餐饮|餐费|小吃|餐馆|饭店)/u, label: "餐饮价格", admission: false },
+  { pattern: /(收费标准|收费|费用|价格)/u, label: "公开页面价格", admission: false },
+]);
+const INTEREST_SEARCH_TERMS = Object.freeze([
+  { label: "自然风光", query: "自然风光", aliases: ["自然风光", "自然", "山水", "自然景观", "户外"] },
+  { label: "人文历史", query: "人文历史", aliases: ["人文历史", "人文", "历史", "文化", "古迹", "博物馆"] },
+  { label: "本地美食", query: "美食", aliases: ["本地美食", "美食", "小吃", "餐饮", "美食探索"] },
+  { label: "亲子轻松", query: "亲子", aliases: ["亲子轻松", "亲子", "轻松", "家庭"] },
+]);
 const processCache = new Map();
 
 export class FreePublicSourceError extends Error {
@@ -56,10 +76,13 @@ function stableHash(text) {
 
 function normaliseInterests(interests) {
   if (!Array.isArray(interests)) return [];
-  return [...new Set(interests
-    .map((item) => cleanText(item, MAX_INTEREST_LENGTH))
-    .filter(Boolean))]
+  const submitted = interests
+    .map((item) => cleanText(item, MAX_INTEREST_LENGTH).toLocaleLowerCase())
+    .filter(Boolean)
     .slice(0, MAX_INTERESTS);
+  return INTEREST_SEARCH_TERMS.filter((interest) => submitted.some((item) => (
+    interest.aliases.some((alias) => item.includes(alias.toLocaleLowerCase()))
+  )));
 }
 
 function destinationNeedle(destination) {
@@ -75,11 +98,17 @@ function pageMatchesDestination(page, destination) {
   return text.includes(destination) || (needle.length >= 2 && text.includes(needle));
 }
 
-function isVisitCandidate(page, destination) {
+function isVisitCandidate(page, destination, provider) {
   const title = cleanText(page?.title, 160);
   return pageMatchesDestination(page, destination)
     && !NON_VISIT_TITLE_PATTERN.test(title)
-    && !GENERIC_ADMIN_TITLE_PATTERN.test(title);
+    // On Wikivoyage, a title such as "玉山县" is often the travel guide for
+    // that place rather than an administrative encyclopedia entry. Keep it so
+    // a prefecture-level destination can surface its nearby county guides.
+    && (provider.id === "zh-wikivoyage" || !GENERIC_ADMIN_TITLE_PATTERN.test(title))
+    // District/city encyclopedia-style titles are not useful destination
+    // stops even on Wikivoyage. County guides remain allowed above.
+    && !(provider.id === "zh-wikivoyage" && /(市|区)$/u.test(title));
 }
 
 function safeSourceUrl(value, provider) {
@@ -109,61 +138,218 @@ function isoTime(value) {
   return new Date(value).toISOString();
 }
 
+function pageIdFor(page) {
+  const pageId = Number(page?.pageid);
+  return Number.isSafeInteger(pageId) && pageId > 0 ? String(pageId) : "";
+}
+
 function cacheKeyFor(input) {
   return JSON.stringify({
     destination: input.destination,
-    interests: input.interests,
+    queryTerms: input.queryTerms,
     maxResults: input.maxResults,
   });
 }
 
-function makeSearchUrl(provider, input) {
+function makeSearchQueries(input) {
+  const focusTerms = input.interests.map((interest) => interest.query);
+  const groupCount = Math.min(
+    Math.max(0, MAX_SEARCH_QUERIES_PER_PROVIDER - 2),
+    focusTerms.length,
+  );
+  const groups = Array.from({ length: groupCount }, () => []);
+  for (const [index, term] of focusTerms.entries()) {
+    if (groups.length) groups[index % groups.length].push(term);
+  }
+  return [
+    { text: input.destination + " 旅游", interests: [] },
+    { text: input.destination + " 景点", interests: [] },
+    ...groups.map((terms) => ({
+      text: input.destination + " " + terms.join(" "),
+      interests: terms,
+    })),
+  ];
+}
+
+function makeSearchUrl(provider, input, query) {
   const params = new URLSearchParams({
     action: "query",
     format: "json",
     generator: "search",
-    gsrsearch: input.destination + " 旅游",
+    gsrsearch: query.text,
     gsrnamespace: "0",
-    gsrlimit: String(Math.min(12, Math.max(4, input.maxResults * 2))),
+    gsrlimit: String(Math.min(8, Math.max(4, input.maxResults + 2))),
     prop: "extracts|info",
     inprop: "url",
     exintro: "1",
     explaintext: "1",
+    exchars: "360",
     redirects: "1",
     origin: "*",
   });
   return provider.api + "?" + params.toString();
 }
 
-function normalisePages(body, provider, input) {
-  const pages = Object.values(body?.query?.pages || {})
-    .filter((page) => isVisitCandidate(page, input.destination))
-    .sort((left, right) => Number(left?.index || Number.MAX_SAFE_INTEGER) - Number(right?.index || Number.MAX_SAFE_INTEGER));
+function makeExtractUrl(provider, candidate) {
+  const params = new URLSearchParams({
+    action: "query",
+    format: "json",
+    pageids: candidate.pageId,
+    prop: "extracts|info",
+    inprop: "url",
+    explaintext: "1",
+    exchars: String(MAX_EXTRACT_CHARS),
+    redirects: "1",
+    origin: "*",
+  });
+  return provider.api + "?" + params.toString();
+}
+
+function priceKindFromContext(context, amountOffset) {
+  const matches = [];
+  for (const kind of PRICE_KINDS) {
+    const pattern = new RegExp(kind.pattern.source, "gu");
+    for (const match of context.matchAll(pattern)) {
+      const start = Number(match.index || 0);
+      const end = start + match[0].length;
+      const distance = amountOffset < start
+        ? start - amountOffset
+        : amountOffset > end
+          ? amountOffset - end
+          : 0;
+      matches.push({ kind, start, end, distance });
+    }
+  }
+  matches.sort((left, right) => left.distance - right.distance || left.start - right.start);
+  return matches[0] || null;
+}
+
+function priceEvidenceDetail(sentence, amountOffset) {
+  if (sentence.length <= MAX_PRICE_EVIDENCE_DETAIL_LENGTH) return cleanText(sentence, MAX_PRICE_EVIDENCE_DETAIL_LENGTH);
+  const start = Math.max(0, amountOffset - 90);
+  const end = Math.min(sentence.length, amountOffset + 130);
+  const prefix = start > 0 ? "…" : "";
+  const suffix = end < sentence.length ? "…" : "";
+  return prefix + cleanText(sentence.slice(start, end), MAX_PRICE_EVIDENCE_DETAIL_LENGTH - 2) + suffix;
+}
+
+function extractPriceEvidence(extract, sourceUrl) {
+  const text = cleanText(extract, MAX_EXTRACT_CHARS);
+  if (!text || !sourceUrl) return [];
+  const evidences = [];
   const seen = new Set();
+  const sentences = text.match(/[^。！？；\n]+[。！？；]?/gu) || [];
+
+  for (const sentence of sentences) {
+    CNY_AMOUNT_PATTERN.lastIndex = 0;
+    const amountMatches = [...sentence.matchAll(CNY_AMOUNT_PATTERN)];
+    for (const match of amountMatches) {
+      const amount = Number(match[1] || match[2]);
+      if (!Number.isFinite(amount) || amount <= 0 || amount > 100_000) continue;
+      const amountOffset = Number(match.index || 0);
+      const context = sentence.slice(
+        Math.max(0, amountOffset - 56),
+        Math.min(sentence.length, amountOffset + match[0].length + 56),
+      );
+      const contextAmountOffset = amountOffset - Math.max(0, amountOffset - 56);
+      const priceMatch = priceKindFromContext(context, contextAmountOffset);
+      if (!priceMatch) continue;
+
+      const scopeContext = context.slice(
+        Math.max(0, priceMatch.start - 20),
+        Math.min(context.length, priceMatch.end + 40),
+      );
+      const perPerson = priceMatch.kind.admission && PER_PERSON_PATTERN.test(scopeContext);
+      const detail = priceEvidenceDetail(sentence, amountOffset);
+      const key = [amount, priceMatch.kind.label, detail].join("|");
+      if (seen.has(key)) continue;
+      seen.add(key);
+      evidences.push({
+        amount_cny: amount,
+        detail,
+        source_url: sourceUrl,
+        pricing_scope: perPerson ? "per_person" : "unspecified",
+        per_person: perPerson,
+        // A sentence with several prices often describes mutually exclusive
+        // ticket choices (for example, a pass and a single-attraction ticket).
+        // Keep every source fact visible, but never add those choices together.
+        aggregation_safe: amountMatches.length === 1,
+      });
+      if (evidences.length >= MAX_PRICE_EVIDENCE_PER_SOURCE) return evidences;
+    }
+  }
+  return evidences;
+}
+
+function normaliseSearchPages(body, provider, input, query) {
+  const pages = Object.values(body?.query?.pages || {})
+    .filter((page) => isVisitCandidate(page, input.destination, provider))
+    .sort((left, right) => Number(left?.index || Number.MAX_SAFE_INTEGER) - Number(right?.index || Number.MAX_SAFE_INTEGER));
 
   return pages.flatMap((page) => {
     const uri = safeSourceUrl(page?.fullurl || page?.canonicalurl, provider);
-    if (!uri || seen.has(uri)) return [];
-    seen.add(uri);
-
+    if (!uri) return [];
     const title = cleanText(page?.title, 160) || new URL(uri).pathname;
-    const excerpt = cleanText(page?.extract, 360);
     return [{
-      source_id: provider.id + "-" + stableHash(uri),
-      title,
-      uri,
-      excerpt,
-      provider: provider.label,
-      relevance: provider.label + "公开资料，请打开原页面核验。",
+      pageId: pageIdFor(page),
+      source: {
+        source_id: provider.id + "-" + stableHash(uri),
+        title,
+        uri,
+        excerpt: cleanText(page?.extract, MAX_SOURCE_EXCERPT_LENGTH),
+        provider: provider.label,
+        matched_interests: query.interests,
+        price_evidence: [],
+        relevance: provider.label + "公开资料，请打开原页面核验。",
+      },
     }];
   });
+}
+
+function collectProviderCandidates(searchResults) {
+  const candidateMap = new Map();
+  for (const { body, query, provider, input } of searchResults) {
+    for (const candidate of normaliseSearchPages(body, provider, input, query)) {
+      const existing = candidateMap.get(candidate.source.uri);
+      if (!existing) {
+        candidateMap.set(candidate.source.uri, candidate);
+        continue;
+      }
+      existing.source.matched_interests = [...new Set([
+        ...existing.source.matched_interests,
+        ...candidate.source.matched_interests,
+      ])];
+      if (!existing.pageId && candidate.pageId) existing.pageId = candidate.pageId;
+    }
+  }
+  return [...candidateMap.values()];
+}
+
+function detailPageFor(body, pageId) {
+  return Object.values(body?.query?.pages || {}).find((page) => pageIdFor(page) === pageId) || null;
+}
+
+function enrichCandidate(candidate, detailPage, provider) {
+  if (!detailPage) return candidate.source;
+  const uri = safeSourceUrl(detailPage?.fullurl || detailPage?.canonicalurl, provider) || candidate.source.uri;
+  const title = cleanText(detailPage?.title, 160) || candidate.source.title;
+  const extract = cleanText(detailPage?.extract, MAX_EXTRACT_CHARS);
+  const excerpt = cleanText(extract || candidate.source.excerpt, MAX_SOURCE_EXCERPT_LENGTH);
+  return {
+    ...candidate.source,
+    title,
+    uri,
+    excerpt,
+    price_evidence: extractPriceEvidence(extract || candidate.source.excerpt, uri),
+  };
 }
 
 function publicNotices(sourceCount) {
   const notices = [
     "本功能只查询免费公开资料页，不需要账号、绑卡或 API Key。",
+    "仅向资料站发送目的地和经过固定映射的旅行偏好；不会发送备注、预算或个人信息。",
+    "票价候选仅来自公开条目摘要中明确出现的中文金额和费用语境；它不是实时报价，也不会自动当作预算。",
     "景点开放状态、票价、餐饮价格和预约要求会变化；请在出行前打开来源页核验。",
-    "本功能不调用 DeepSeek、不抓取网页全文、不办理预订，也不把摘要当作实时报价。",
   ];
   if (!sourceCount) {
     notices.unshift("未找到能与该目的地对应的公开资料页；系统没有借用其他城市或编造景点。");
@@ -197,13 +383,13 @@ function networkError(error) {
   return new FreePublicSourceError("public_source_network_error", "公开资料网络暂不可用，请稍后再试。", 503);
 }
 
-async function fetchProviderPages(provider, input, { fetchImpl, timeoutMs }) {
+async function fetchProviderJson(url, { fetchImpl, timeoutMs }) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   timer.unref?.();
   let response;
   try {
-    response = await fetchImpl(makeSearchUrl(provider, input), {
+    response = await fetchImpl(url, {
       headers: {
         Accept: "application/json",
         "User-Agent": "TravelOpsCopilot/1.0 (+https://github.com/dongze993-dot/travelops-copilot)",
@@ -222,6 +408,68 @@ async function fetchProviderPages(provider, input, { fetchImpl, timeoutMs }) {
   } catch {
     throw new FreePublicSourceError("public_source_invalid_response", "公开资料站点返回了无法处理的数据，请稍后再试。", 502);
   }
+}
+
+async function retrieveProviderSources(provider, input, { fetchImpl, timeoutMs }) {
+  const queries = makeSearchQueries(input);
+  const successfulSearches = [];
+  const failures = [];
+  // Free MediaWiki endpoints can reject a burst of same-host requests. Query
+  // one term at a time and stop once we have enough distinct candidates. This
+  // is slower only when the destination has sparse material, but much more
+  // reliable than losing all but the first query to a rate limit.
+  for (const query of queries) {
+    try {
+      successfulSearches.push({
+        body: await fetchProviderJson(makeSearchUrl(provider, input, query), { fetchImpl, timeoutMs }),
+        query,
+        provider,
+        input,
+      });
+      if (collectProviderCandidates(successfulSearches).length >= input.maxResults) break;
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+  if (!successfulSearches.length) {
+    throw failures[0]
+      || new FreePublicSourceError("public_source_request_failed", "公开资料查询未成功，请稍后再试。", 502);
+  }
+
+  const candidates = collectProviderCandidates(successfulSearches);
+  if (!candidates.length) return [];
+  const toEnrich = candidates
+    .filter((candidate) => candidate.pageId)
+    .slice(0, Math.min(input.maxResults, MAX_ENRICHED_PAGES_PER_PROVIDER));
+  const enrichments = await Promise.allSettled(toEnrich.map(async (candidate) => ({
+    candidate,
+    body: await fetchProviderJson(makeExtractUrl(provider, candidate), { fetchImpl, timeoutMs }),
+  })));
+  const enrichedByUri = new Map();
+  for (const result of enrichments) {
+    if (result.status !== "fulfilled") continue;
+    const { candidate, body } = result.value;
+    enrichedByUri.set(candidate.source.uri, enrichCandidate(candidate, detailPageFor(body, candidate.pageId), provider));
+  }
+  return candidates.map((candidate) => enrichedByUri.get(candidate.source.uri) || candidate.source);
+}
+
+function mergeProviderSources(providerSources, maxResults) {
+  const sourceMap = new Map();
+  for (let index = 0; sourceMap.size < maxResults; index += 1) {
+    let foundNext = false;
+    for (const sources of providerSources) {
+      const source = sources[index];
+      if (!source) continue;
+      foundNext = true;
+      const identity = sourceIdentity(source);
+      if (!identity || sourceMap.has(identity)) continue;
+      sourceMap.set(identity, source);
+      if (sourceMap.size >= maxResults) break;
+    }
+    if (!foundNext) break;
+  }
+  return [...sourceMap.values()];
 }
 
 /**
@@ -246,7 +494,7 @@ export function publicFreePublicSourceStatus() {
     requires_api_key: false,
     notes: [
       "联网资料查询已启用：无需账号、绑卡或 API Key。",
-      "仅查询目的地；选中的偏好只用于本次方案结构。不要输入个人信息。",
+      "仅会发送目的地和固定映射后的旅行偏好；不会发送备注、预算或个人信息。",
     ],
   };
 }
@@ -256,17 +504,24 @@ export function makeTravelSearchInput(payload, config = freePublicSourceConfig()
   if (!destination) {
     throw new FreePublicSourceError("invalid_destination", "destination 必须是 1 到 80 个字符。", 422);
   }
-  const interests = normaliseInterests(payload?.interests);
+  const selectedInterests = normaliseInterests(payload?.interests);
   const requestedLimit = Number(payload?.requested_limit);
   const maxResults = Number.isInteger(requestedLimit)
     ? Math.max(1, Math.min(requestedLimit, config.maxResults))
     : config.maxResults;
-  return { destination, interests, maxResults };
+  return {
+    destination,
+    interests: selectedInterests,
+    queryTerms: selectedInterests.map((interest) => interest.query),
+    maxResults,
+  };
 }
 
 /**
- * Search two free, read-only Chinese Wikimedia endpoints. The request contains
- * only the validated destination and never sends a key, notes or budget.
+ * Search two free, read-only Chinese Wikimedia endpoints. Search requests
+ * contain only a validated destination and controlled interest terms. Exact
+ * page ids returned by those searches are then queried through the same API
+ * for a bounded plaintext extract; no commercial page is crawled.
  * Dependency injection keeps CI fully offline.
  */
 export async function retrieveFreePublicTravelSources(payload, {
@@ -287,33 +542,26 @@ export async function retrieveFreePublicTravelSources(payload, {
     return cachedResult(cached, nowMs);
   }
 
-  const sourceMap = new Map();
-  const failures = [];
-  for (const provider of PUBLIC_SOURCES) {
-    try {
-      const body = await fetchProviderPages(provider, input, { fetchImpl, timeoutMs: config.timeoutMs });
-      for (const source of normalisePages(body, provider, input)) {
-        if (sourceMap.size >= input.maxResults) break;
-        const identity = sourceIdentity(source);
-        if (!identity || sourceMap.has(identity)) continue;
-        sourceMap.set(identity, source);
-      }
-    } catch (error) {
-      failures.push(error);
-    }
-    if (sourceMap.size >= input.maxResults) break;
-  }
-
-  if (!sourceMap.size && failures.length === PUBLIC_SOURCES.length) {
+  const providerSettled = await Promise.allSettled(PUBLIC_SOURCES.map((provider) => (
+    retrieveProviderSources(provider, input, { fetchImpl, timeoutMs: config.timeoutMs })
+  )));
+  const providerSources = providerSettled
+    .filter((result) => result.status === "fulfilled")
+    .map((result) => result.value);
+  const failures = providerSettled
+    .filter((result) => result.status === "rejected")
+    .map((result) => result.reason);
+  const sources = mergeProviderSources(providerSources, input.maxResults);
+  if (!sources.length && failures.length === PUBLIC_SOURCES.length) {
     throw failures[0];
   }
 
-  const sources = [...sourceMap.values()];
   const result = {
     mode: "free_public_sources",
     provider: "中文维基导游 / 中文维基百科",
     status: sources.length ? "public_sources" : "no_results",
     destination: input.destination,
+    search_interests: input.interests.map((interest) => interest.label),
     retrieved_at: isoTime(nowMs),
     cache_age_seconds: 0,
     source_count: sources.length,

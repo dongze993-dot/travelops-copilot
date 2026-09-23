@@ -39,8 +39,12 @@ jobs:
           set -euo pipefail
           node scripts/build_netlify_demo.mjs
           test -f dist-netlify-demo/index.html
-          test -f dist-netlify-demo/styles.css
-          test -f dist-netlify-demo/app.js
+          test "$(find dist-netlify-demo -maxdepth 1 -type f -name 'styles.*.css' | wc -l)" -eq 1
+          test "$(find dist-netlify-demo -maxdepth 1 -type f -name 'app.*.js' | wc -l)" -eq 1
+          ! test -e dist-netlify-demo/styles.css
+          ! test -e dist-netlify-demo/app.js
+          grep --extended-regexp --quiet 'href="\./styles\.[0-9a-f]{12}\.css"' dist-netlify-demo/index.html
+          grep --extended-regexp --quiet 'src="\./app\.[0-9a-f]{12}\.js"' dist-netlify-demo/index.html
           test -f netlify.toml
           ! grep --fixed-strings --quiet '/frontend/' dist-netlify-demo/index.html
           ! grep --fixed-strings --quiet 'TRAVELOPS_STATIC_DEMO' dist-netlify-demo/index.html

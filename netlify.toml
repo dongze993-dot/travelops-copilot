@@ -19,25 +19,25 @@
   node_bundler = "esbuild"
   included_files = ["data/attractions.json"]
 
-# The generated public page refers to stable asset names (index.html, app.js,
-# and styles.css). Require a fresh validation after each deploy so a visitor
-# cannot keep an older interface in a browser cache.
+# Always request the HTML shell again. Its JavaScript and CSS use a build
+# fingerprint, so a normal refresh reliably moves a visitor to the latest
+# public interface after a deploy.
 [[headers]]
   for = "/"
   [headers.values]
-    Cache-Control = "no-cache"
+    Cache-Control = "no-store, max-age=0"
 
 [[headers]]
   for = "/index.html"
   [headers.values]
-    Cache-Control = "no-cache"
+    Cache-Control = "no-store, max-age=0"
 
 [[headers]]
-  for = "/app.js"
+  for = "/*.js"
   [headers.values]
-    Cache-Control = "no-cache"
+    Cache-Control = "public, max-age=31536000, immutable"
 
 [[headers]]
-  for = "/styles.css"
+  for = "/*.css"
   [headers.values]
-    Cache-Control = "no-cache"
+    Cache-Control = "public, max-age=31536000, immutable"

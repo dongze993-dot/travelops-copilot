@@ -256,26 +256,25 @@ v2 使用与 `POST /api/v1/plans` 相同的请求体和确定性规划基础，�
 
 - `notes` 非空时返回 `422 free_public_source_notes_not_allowed`；
 - `create_follow_up_ticket=true` 时返回公开演示的 `403`；
-- 只有 `destination` 会被交给中文维基导游和中文维基百科的只读查询接口；
+- 只有 `destination` 和经过固定映射的旅行偏好词会被交给中文维基导游和中文维基百科的只读查询接口；
 - 所有未知字段都不会进入检索请求。
 
-响应保持 v1 渲染字段（`itinerary`、`budget`、`citations`、`validation`、`workflow_trace`、`ticket`），并增加 `retrieval`。每个日程项目指向本次来源的 `source_id`；无法检索时是“待补充”状态，而不是替换为别城内容。
+响应包含 `itinerary`、`budget`、`citations`、`validation`、`ticket` 和 `retrieval`。每个有资料支撑的日程项目附带 `source_id`、`source_url` 和可选 `price_evidence`；无法检索时不会替换为别城内容。
 
 与合成 v1 预算不同，v3 的 `budget` 是：
 
 ```json
 {
-  "mode": "allocation_framework",
+  "mode": "sourced_partial_subtotal",
   "pricing_complete": false,
   "budget_cap_cny": 2400,
-  "estimated_total_cny": null,
-  "remaining_cny": null,
-  "summary_label": "预算上限",
-  "total_label": "预算上限"
+  "confirmed_subtotal_cny": 160,
+  "summary_label": "可确认的公开价格小计",
+  "total_label": "可确认部分小计"
 }
 ```
 
-这表示项目按天数、人数和节奏计算景区与体验、餐饮、市内短途出行、小额伴手礼和机动预留的粗略游玩预算区间，并和用户填写的预算上限比较；不含往返交通与住宿，不能被当作实时价格、报价或预订承诺。`validation.passed` 会保持 `false`，直到价格、营业状态、交通和预约由人工在原始来源页核验。完整边界见 [免费公开资料说明](live-retrieval.md)。
+这表示项目只把来源中金额和计价方式明确、且不属于同页互斥票种的项目纳入局部小计。未标价的餐饮、市内交通、伴手礼、往返交通与住宿不会被编进总价；没有可安全汇总的来源价格时，`confirmed_subtotal_cny` 为 `null`。这不是实时价格、报价或预订承诺。完整边界见 [免费公开资料说明](live-retrieval.md)。
 
 ## `POST /api/v1/tickets`
 

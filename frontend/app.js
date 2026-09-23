@@ -36,6 +36,11 @@
       .replaceAll("'", "&#039;");
   }
 
+  function shortText(value, maximum = 250) {
+    const text = String(value ?? "").replace(/\s+/g, " ").trim();
+    return text.length > maximum ? `${text.slice(0, Math.max(0, maximum - 1)).trimEnd()}…` : text;
+  }
+
   function safeUrl(value) {
     try {
       const url = new URL(value, window.location.origin);
@@ -55,7 +60,14 @@
   function cnyRange(range) {
     const minimum = cny(range?.minimum);
     const maximum = cny(range?.maximum);
-    return minimum && maximum ? `${minimum}–${maximum}` : "";
+    return minimum && maximum ? (minimum === maximum ? minimum : `${minimum}–${maximum}`) : "";
+  }
+
+  function amountRange(item, sourceAmount = false) {
+    const direct = sourceAmount ? item?.source_amount_cny : item?.amount_cny;
+    const minimum = sourceAmount ? item?.source_minimum_cny : item?.minimum_cny;
+    const maximum = sourceAmount ? item?.source_maximum_cny : item?.maximum_cny;
+    return cny(direct) || cnyRange({ minimum, maximum }) || "";
   }
 
   function styleLabel(value) {
@@ -72,9 +84,7 @@
   }
 
   function setButtonLoading(isLoading, label = "正在生成") {
-    if (!planButton.dataset.defaultLabel) {
-      planButton.dataset.defaultLabel = planButton.innerHTML;
-    }
+    if (!planButton.dataset.defaultLabel) planButton.dataset.defaultLabel = planButton.innerHTML;
     planButton.disabled = isLoading;
     planButton.innerHTML = isLoading
       ? `<span>${escapeHtml(label)}</span><span aria-hidden="true">⋯</span>`
@@ -98,9 +108,7 @@
     if (window.TravelOpsStaticDemoReady && typeof window.TravelOpsStaticDemoReady.then === "function") {
       await window.TravelOpsStaticDemoReady;
     }
-    if (!window.TravelOpsStaticDemo) {
-      throw new Error("本地预览资料尚未加载，请刷新后再试。");
-    }
+    if (!window.TravelOpsStaticDemo) throw new Error("本地预览资料尚未加载，请刷新后再试。");
     return window.TravelOpsStaticDemo;
   }
 
@@ -118,25 +126,22 @@
   async function getJson(url) {
     const staticDemo = await staticDemoAdapter();
     if (staticDemo) return staticDemo.getJson(url);
-    const response = await fetch(url, { headers: { Accept: "application/json" } });
-    return parseResponse(response);
+    return parseResponse(await fetch(url, { headers: { Accept: "application/json" } }));
   }
 
   function setPublicCopy() {
     useFreePublicSources = true;
     environmentLabel.textContent = "免费公开资料";
-    publicDemoNotice.textContent = "不需要 API Key、账号或绑卡。只用目的地查询公开资料；票价、营业时间和预约要求会变化，出发前请打开资料来源确认。";
+    publicDemoNotice.textContent = "不需要 API Key、账号或绑卡。系统只查询目的地和选择的偏好；每个地点与费用会附资料链接。资料价格和开放情况会变化，出发前请打开链接确认。";
   }
 
   async function configureDataSource() {
     if (isStaticBrowserDemo) {
       environmentLabel.textContent = "本地预览";
-      publicDemoNotice.textContent = "这是本地预览，使用项目内置的示例资料；公开网站会自动查询可打开的免费资料来源。";
+      publicDemoNotice.textContent = "本地预览使用项目自带资料；公开网站会查询可打开的中文公开资料。";
       return;
     }
 
-    // A public Netlify deployment must never fall back to the old synthetic
-    // route. If free lookup is unavailable, show a clear error instead.
     if (isNetlifySite) setPublicCopy();
     try {
       const health = await getJson("/health");
@@ -165,16 +170,44 @@
 
   function renderMetrics(plan) {
     const summary = plan.request_summary || {};
+    const basis = plan.planning_basis || {};
     const budget = plan.budget || {};
-    const total = cnyRange(budget.recommended_range_cny) || cny(budget.estimated_total_cny) || "待查询";
+    const confirmed = cnyRange(budget.confirmed_subtotal_range_cny) || cny(budget.confirmed_subtotal_cny);
     const metrics = [
       [`${Number(summary.days) || 0} 天`, "游玩天数"],
-      [`${Number(summary.travelers) || 0} 人`, "出行人数"],
-      [total, "全程游玩参考"],
+      [`${Number(basis.selected_source_count) || 0} 个`, "已安排资料地点"],
+      [confirmed || "未查到", "可确认费用小计"],
     ];
     document.querySelector("#metric-row").innerHTML = metrics
       .map(([value, label]) => `<div class="metric"><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></div>`)
       .join("");
+  }
+
+  function evidenceAmount(evidence) {
+    return cny(evidence?.amount_cny)
+      || cny(evidence?.source_amount_cny)
+      || cnyRange({ minimum: evidence?.minimum_cny ?? evidence?.source_minimum_cny, maximum: evidence?.maximum_cny ?? evidence?.source_maximum_cny });
+  }
+
+  function priceEvidenceHtml(evidence = []) {
+    const records = Array.isArray(evidence) ? evidence.slice(0, 3) : [];
+    return records.map((record) => {
+      const amount = evidenceAmount(record);
+      const href = safeUrl(record.evidence_url || record.source_url);
+      if (!amount) return "";
+      const detail = shortText(record.evidence_text || record.detail || "资料页中出现的费用信息", 150);
+      const link = href
+        ? `<a class="evidence-link" href="${escapeHtml(href)}" target="_blank" rel="noreferrer">查看费用原文 ↗</a>`
+        : "";
+      return `<div class="source-price"><strong>资料金额 ${escapeHtml(amount)}</strong><span>${escapeHtml(detail)}</span>${link}</div>`;
+    }).join("");
+  }
+
+  function sourceReferenceHtml(item) {
+    const href = safeUrl(item?.source_url);
+    return href
+      ? `<a class="source-reference" href="${escapeHtml(href)}" target="_blank" rel="noreferrer">查看这条资料 ↗</a>`
+      : "";
   }
 
   function renderItinerary(itinerary = []) {
@@ -183,46 +216,60 @@
     document.querySelector("#itinerary").innerHTML = validDays.map((day) => {
       const items = Array.isArray(day.items) ? day.items : [];
       const itemHtml = items.map((item) => {
-        const meta = [];
-        if (Number.isFinite(Number(item.estimated_duration_minutes)) && Number(item.estimated_duration_minutes) > 0) {
-          meta.push(`约 ${Math.round(Number(item.estimated_duration_minutes))} 分钟`);
-        }
-        if (Number.isFinite(Number(item.estimated_cost_cny))) {
-          meta.push(`参考 ${cny(item.estimated_cost_cny)}`);
-        }
-        return `<div class="activity">
+        const sourceBacked = Boolean(item.source_id && item.source_url);
+        const selectionReason = shortText(item.selection_reason, 135);
+        const detail = shortText(item.description, sourceBacked ? 220 : 135);
+        return `<div class="activity${sourceBacked ? " activity-sourced" : " activity-flexible"}">
           <span class="activity-slot">${escapeHtml(item.slot || "安排")}</span>
           <div class="activity-content">
-            <strong>${escapeHtml(item.title || "当日游玩安排")}</strong>
-            ${item.description ? `<p>${escapeHtml(item.description)}</p>` : ""}
-            ${meta.length ? `<div class="activity-meta">${escapeHtml(meta.join(" · "))}</div>` : ""}
+            <strong>${escapeHtml(item.title || "当日安排")}</strong>
+            ${detail ? `<p>${escapeHtml(detail)}</p>` : ""}
+            ${selectionReason ? `<div class="activity-meta">${escapeHtml(selectionReason)}</div>` : ""}
+            ${priceEvidenceHtml(item.price_evidence)}
+            ${sourceReferenceHtml(item)}
           </div>
         </div>`;
       }).join("");
       return `<article class="itinerary-day">
         <div class="day-label">第 ${escapeHtml(day.day || "")} 天${day.date_label ? ` · ${escapeHtml(day.date_label)}` : ""}</div>
         <div class="day-content">
-          <h4>${escapeHtml(day.theme || "当日游玩安排")}</h4>
-          ${itemHtml || '<p class="empty-inline">这一天暂时没有可安排的公开资料。</p>'}
+          <h4>${escapeHtml(day.theme || "当天安排")}</h4>
+          ${itemHtml || '<p class="empty-inline">这一天没有可用的公开资料。</p>'}
         </div>
       </article>`;
     }).join("");
   }
 
   function renderBudget(budget = {}) {
-    const items = Array.isArray(budget.line_items) ? budget.line_items : [];
-    const range = cnyRange(budget.recommended_range_cny);
+    const items = Array.isArray(budget.source_price_items) ? budget.source_price_items : (Array.isArray(budget.line_items) ? budget.line_items : []);
+    const confirmed = cnyRange(budget.confirmed_subtotal_range_cny) || cny(budget.confirmed_subtotal_cny);
     document.querySelector("#budget-currency").textContent = budget.currency || "CNY";
-    document.querySelector("#budget-scope").textContent = budget.scope || "景区、餐饮、市内短途出行和小额伴手礼；不含往返交通与住宿。";
-    document.querySelector("#budget").innerHTML = `${items.map((item) => `<div class="budget-item">
-      <div><strong>${escapeHtml(item.category || "游玩支出")}</strong>${item.assumption ? `<small>${escapeHtml(item.assumption)}</small>` : ""}</div>
-      ${cny(item.amount_cny) ? `<span class="budget-amount">${cny(item.amount_cny)}</span>` : ""}
-    </div>`).join("")}
-    <div class="budget-total"><span>${escapeHtml(budget.total_label || "全程游玩参考")}</span><span>${escapeHtml(range || cny(budget.estimated_total_cny) || "")}</span></div>`;
+    document.querySelector("#budget-scope").textContent = budget.scope || "只显示有公开资料依据的价格；没有出处的消费不会被编进总价。";
 
-    const notice = budget.notice || "费用会随季节、购票方式和实际消费变化。";
+    if (!items.length) {
+      document.querySelector("#budget").innerHTML = `<div class="no-result"><strong>这次没有查到可直接引用的费用资料。</strong><p>地点资料仍在上方；餐饮、门票和市内出行的实时价格请打开资料页或官方渠道确认。</p></div>`;
+    } else {
+      document.querySelector("#budget").innerHTML = `${items.map((item) => {
+        const original = amountRange(item, true) || amountRange(item, false) || "资料金额待确认";
+        const calculated = item.included_in_subtotal ? amountRange(item, false) : "未计入小计";
+        const href = safeUrl(item.evidence_url);
+        const evidence = shortText(item.evidence_text, 180);
+        return `<div class="budget-item">
+          <div>
+            <strong>${escapeHtml(item.category || "资料中的费用")}</strong>
+            <small>${escapeHtml(evidence || item.assumption || "来源页中的费用信息")}</small>
+            ${item.assumption ? `<small>${escapeHtml(item.assumption)}</small>` : ""}
+            ${href ? `<a class="evidence-link" href="${escapeHtml(href)}" target="_blank" rel="noreferrer">查看费用原文 ↗</a>` : ""}
+          </div>
+          <span class="budget-amount">${escapeHtml(item.included_in_subtotal ? calculated : original)}</span>
+        </div>`;
+      }).join("")}
+      <div class="budget-total"><span>${escapeHtml(budget.total_label || "可确认部分小计")}</span><span>${escapeHtml(confirmed || "无法安全相加")}</span></div>`;
+    }
+
+    const notice = budget.notice || "价格会变化，出发前请确认来源页。";
     travelTip.hidden = false;
-    travelTip.textContent = `提示：${notice}`;
+    travelTip.textContent = `说明：${notice}`;
   }
 
   function renderCitations(citations = []) {
@@ -239,27 +286,32 @@
       const heading = href
         ? `<a href="${escapeHtml(href)}" target="_blank" rel="noreferrer">${title} <span aria-hidden="true">↗</span></a>`
         : `<strong>${title}</strong>`;
-      return `<article class="citation">
-        <div class="citation-top">${heading}${href ? '<span class="citation-relevance">打开资料</span>' : ""}</div>
-        ${source.excerpt ? `<p>${escapeHtml(source.excerpt)}</p>` : ""}
-      </article>`;
+      const tags = Array.isArray(source.matched_interests) && source.matched_interests.length
+        ? `<span class="citation-relevance">匹配：${escapeHtml(source.matched_interests.join("、"))}</span>`
+        : (href ? '<span class="citation-relevance">打开资料</span>' : "");
+      return `<article class="citation"><div class="citation-top">${heading}${tags}</div>${source.excerpt ? `<p>${escapeHtml(shortText(source.excerpt, 220))}</p>` : ""}</article>`;
     }).join("");
   }
 
   function renderNoSourcePlan(summary = {}) {
     document.querySelector("#summary-label").textContent = summary.destination || "旅行计划";
-    document.querySelector("#summary-title").textContent = "暂未查到可用资料";
-    document.querySelector("#plan-badge").textContent = "换个名称再试";
+    document.querySelector("#summary-title").textContent = "暂未找到可用的目的地资料";
+    document.querySelector("#plan-badge").textContent = "换个名称试试";
     document.querySelector("#metric-row").innerHTML = "";
+    document.querySelector("#plan-basis").textContent = "系统没有用其他城市的资料补空，也没有生成未查证的景点或价格。";
     document.querySelector("#itinerary-count").textContent = "";
-    document.querySelector("#itinerary").innerHTML = `<div class="no-result">
-      <strong>暂时没有找到能直接用于行程的公开资料。</strong>
-      <p>可以试试输入“上饶市”而不是简称，或输入更具体的县城、景区名称；稍后再试也可以。</p>
-    </div>`;
+    document.querySelector("#itinerary").innerHTML = `<div class="no-result"><strong>没有找到能对应这个目的地的公开资料。</strong><p>可尝试输入“上饶市”“婺源县”等完整名称，或输入更具体的景区名后再试。</p></div>`;
     itinerarySection.hidden = false;
     budgetSection.hidden = true;
     travelTip.hidden = true;
     sourcesSection.hidden = true;
+  }
+
+  function renderPlanBasis(summary = {}, plan = {}) {
+    const interests = Array.isArray(summary.interests) && summary.interests.length ? summary.interests.join("、") : "未选择偏好";
+    const sourceCount = Number(plan.retrieval?.source_count) || 0;
+    const placeCount = Number(plan.planning_basis?.selected_source_count) || 0;
+    document.querySelector("#plan-basis").textContent = `根据“${summary.destination || "目的地"}”、${interests}、${Number(summary.days) || 0} 天、${Number(summary.travelers) || 0} 人、${styleLabel(summary.travel_style)}和你填写的上限 ${cny(plan.budget?.budget_cap_cny) || "未填写"}，从 ${sourceCount} 条公开资料中安排了 ${placeCount} 个地点。`;
   }
 
   function renderPlan(plan) {
@@ -271,16 +323,18 @@
     planOutput.hidden = false;
     if (!sourceCount) {
       renderNoSourcePlan(summary);
-      resultState.textContent = "暂未查到资料";
+      resultState.textContent = "没有找到资料";
       resultState.className = "result-state";
       return false;
     }
 
-    document.querySelector("#summary-label").textContent = `${summary.destination || "目的地"} · ${styleLabel(summary.travel_style)}`;
-    document.querySelector("#summary-title").textContent = `${summary.destination || "目的地"}${summary.days ? ` ${summary.days} 日旅行计划` : "旅行计划"}`;
-    document.querySelector("#plan-badge").textContent = "旅行建议";
+    const interests = Array.isArray(summary.interests) && summary.interests.length ? summary.interests.join("、") : "公开资料";
+    document.querySelector("#summary-label").textContent = `${summary.destination || "目的地"} · ${interests}`;
+    document.querySelector("#summary-title").textContent = `${summary.destination || "目的地"}${summary.days ? ` ${summary.days} 天游玩计划` : "游玩计划"}`;
+    document.querySelector("#plan-badge").textContent = `查到 ${sourceCount} 条资料`;
     itinerarySection.hidden = false;
     budgetSection.hidden = false;
+    renderPlanBasis(summary, plan);
     renderMetrics(plan);
     renderItinerary(plan.itinerary);
     renderBudget(plan.budget);
@@ -312,17 +366,17 @@
     }
 
     const useFreeRoute = useFreePublicSources;
-    setStatus(useFreeRoute ? "正在查询免费公开资料，整理旅行计划…" : "正在整理旅行计划…");
+    setStatus(useFreeRoute ? "正在查询公开资料并整理按天计划…" : "正在整理旅行计划…");
     setButtonLoading(true);
-    resultState.textContent = "生成中";
+    resultState.textContent = "查询中";
     resultState.className = "result-state";
     try {
       const plan = await postJson(useFreeRoute ? API.freePlan : API.plan, payload);
       const hasSources = renderPlan(plan);
       setStatus(
         hasSources
-          ? `已整理 ${Number(plan.retrieval?.source_count) || plan.citations?.length || 0} 条公开资料，点击下方资料可查看原文。`
-          : "暂未查到公开资料，请试试更具体的城市、县城或景区名称。",
+          ? `已查到 ${Number(plan.retrieval?.source_count) || plan.citations?.length || 0} 条公开资料；每个地点和费用依据都可以打开查看。`
+          : "没有找到对应公开资料，试试更完整的城市、县城或景区名称。",
         hasSources ? "success" : "error",
       );
     } catch (error) {

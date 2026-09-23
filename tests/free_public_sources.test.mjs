@@ -32,54 +32,66 @@ function providerResponse(pages) {
   });
 }
 
-function sourcePages(hostname) {
-  const uri = hostname === "zh.wikivoyage.org"
-    ? "https://zh.wikivoyage.org/wiki/%E4%B8%89%E6%B8%85%E5%B1%B1"
-    : "https://zh.wikipedia.org/wiki/%E7%81%B5%E5%B1%B1_(%E4%B8%8A%E9%A5%B6)";
-  const title = hostname === "zh.wikivoyage.org" ? "三清山" : "灵山（上饶）";
+function searchPages(hostname) {
+  const isVoyage = hostname === "zh.wikivoyage.org";
   return {
     1: {
       index: 1,
-      title,
-      extract: title + "位于江西省上饶市，适合作为自然风光候选。",
-      fullurl: uri,
+      pageid: 1,
+      title: isVoyage ? "三清山" : "灵山（上饶）",
+      extract: isVoyage ? "三清山位于江西省上饶市。" : "灵山位于江西省上饶市。",
+      fullurl: `https://${hostname}/wiki/${isVoyage ? "%E4%B8%89%E6%B8%85%E5%B1%B1" : "%E7%81%B5%E5%B1%B1"}`,
     },
     2: {
       index: 2,
-      title: "不相关条目",
-      extract: "这里没有可用的目的地资料。",
-      fullurl: "https://" + hostname + "/wiki/irrelevant",
+      pageid: 2,
+      title: "上饶轨道交通体系",
+      extract: "上饶相关交通规划，不是游玩地点。",
+      fullurl: `https://${hostname}/wiki/transport`,
     },
     3: {
       index: 3,
+      pageid: 3,
+      title: "上饶区",
+      extract: "上饶相关行政区划。",
+      fullurl: `https://${hostname}/wiki/administrative-area`,
+    },
+    4: {
+      index: 4,
+      pageid: 4,
       title: "不安全链接",
       extract: "上饶测试资料。",
       fullurl: "https://evil.example/wiki/unsafe",
     },
-    4: {
-      index: 4,
-      title: "上饶轨道交通体系",
-      extract: "上饶相关交通规划，不应作为游玩候选。",
-      fullurl: "https://" + hostname + "/wiki/transport",
-    },
-    5: {
-      index: 5,
-      title: "上饶区",
-      extract: "上饶相关行政区划，不应作为游玩候选。",
-      fullurl: "https://" + hostname + "/wiki/administrative-area",
+  };
+}
+
+function detailPages(hostname, pageId) {
+  const isVoyage = hostname === "zh.wikivoyage.org";
+  const title = isVoyage ? "三清山" : "灵山（上饶）";
+  const extract = isVoyage
+    ? "三清山位于江西省上饶市，是自然风光候选。费用 ¥150。请以景区当天公告为准。"
+    : "灵山位于江西省上饶市，是自然风光候选。成人票 ¥80。请以景区当天公告为准。";
+  return {
+    [pageId]: {
+      pageid: Number(pageId),
+      title,
+      extract,
+      fullurl: `https://${hostname}/wiki/${isVoyage ? "%E4%B8%89%E6%B8%85%E5%B1%B1" : "%E7%81%B5%E5%B1%B1"}`,
     },
   };
 }
 
 function fakePublicSources(captured) {
-  return async (url, init) => {
+  return async (url, init = {}) => {
     captured.push({ url, init });
-    const hostname = new URL(url).hostname;
-    return providerResponse(sourcePages(hostname));
+    const parsed = new URL(url);
+    const pageId = parsed.searchParams.get("pageids");
+    return providerResponse(pageId ? detailPages(parsed.hostname, pageId) : searchPages(parsed.hostname));
   };
 }
 
-test("free public retrieval sends only a destination query and returns safe, cited sources for 上饶", async () => {
+test("free public retrieval sends only controlled destination and interest searches, then enriches sources", async () => {
   const captured = [];
   const retrieval = await retrieveFreePublicTravelSources({
     ...planningPayload(),
@@ -90,11 +102,15 @@ test("free public retrieval sends only a destination query and returns safe, cit
     fetchImpl: fakePublicSources(captured),
   });
 
-  assert.equal(captured.length, 2);
-  assert.deepEqual(captured.map((call) => new URL(call.url).hostname), ["zh.wikivoyage.org", "zh.wikipedia.org"]);
-  assert.ok(captured.every((call) => new URL(call.url).searchParams.get("gsrsearch") === "上饶 旅游"));
-  assert.ok(captured.every((call) => call.init.method == null));
-  assert.ok(captured.every((call) => !Object.hasOwn(call.init.headers, "Authorization")));
+  const searchCalls = captured.filter((call) => !new URL(call.url).searchParams.has("pageids"));
+  const detailCalls = captured.filter((call) => new URL(call.url).searchParams.has("pageids"));
+  assert.equal(searchCalls.length, 8);
+  assert.equal(detailCalls.length, 2);
+  assert.deepEqual(
+    [...new Set(searchCalls.map((call) => new URL(call.url).searchParams.get("gsrsearch")))].sort(),
+    ["上饶 旅游", "上饶 景点", "上饶 美食", "上饶 自然风光"].sort(),
+  );
+  assert.ok(captured.every((call) => !Object.hasOwn(call.init.headers || {}, "Authorization")));
   assert.equal(JSON.stringify(captured).includes("private-contact"), false);
   assert.equal(retrieval.mode, "free_public_sources");
   assert.equal(retrieval.status, "public_sources");
@@ -104,49 +120,49 @@ test("free public retrieval sends only a destination query and returns safe, cit
   assert.ok(retrieval.sources.every((source) => source.source_id.startsWith("zh-")));
   assert.equal(retrieval.sources.some((source) => source.title.includes("轨道交通")), false);
   assert.equal(retrieval.sources.some((source) => source.title.endsWith("区")), false);
+  assert.equal(retrieval.sources[0].price_evidence[0].amount_cny, 150);
+  assert.match(retrieval.sources[0].price_evidence[0].detail, /费用 ¥150/);
+  assert.equal(retrieval.sources[0].price_evidence[0].aggregation_safe, true);
   assert.equal(JSON.stringify(retrieval).includes("private-contact"), false);
 });
 
-test("free public retrieval caches results without a second public-source request", async () => {
+test("price extraction never treats a number without fee context as a price", async () => {
+  const retrieval = await retrieveFreePublicTravelSources(planningPayload({ interests: [] }), {
+    cache: new Map(),
+    fetchImpl: async (url) => {
+      const parsed = new URL(url);
+      const pageId = parsed.searchParams.get("pageids");
+      if (!pageId) return providerResponse(searchPages(parsed.hostname));
+      return providerResponse({
+        [pageId]: {
+          pageid: Number(pageId),
+          title: "三清山",
+          extract: "三清山位于上饶市，海拔 ¥150 的写法是无效测试数字。",
+          fullurl: `https://${parsed.hostname}/wiki/%E4%B8%89%E6%B8%85%E5%B1%B1`,
+        },
+      });
+    },
+  });
+  assert.ok(retrieval.sources.every((source) => source.price_evidence.length === 0));
+});
+
+test("free public retrieval caches the complete result without more source requests", async () => {
   const cache = new Map();
   const captured = [];
   let clock = Date.UTC(2026, 8, 22, 12, 0, 0);
-  const options = {
-    cache,
-    now: () => clock,
-    fetchImpl: fakePublicSources(captured),
-  };
-
+  const options = { cache, now: () => clock, fetchImpl: fakePublicSources(captured) };
   const first = await retrieveFreePublicTravelSources(planningPayload(), options);
+  const requestCount = captured.length;
   clock += 17_000;
   const second = await retrieveFreePublicTravelSources(planningPayload(), options);
-
-  assert.equal(captured.length, 2);
+  assert.ok(requestCount > 0);
+  assert.equal(captured.length, requestCount);
   assert.equal(first.status, "public_sources");
   assert.equal(second.status, "cache_hit");
   assert.equal(second.cache_age_seconds, 17);
 });
 
-test("free public retrieval deduplicates the same attraction returned by both public sources", async () => {
-  const retrieval = await retrieveFreePublicTravelSources(planningPayload(), {
-    cache: new Map(),
-    fetchImpl: async (url) => {
-      const hostname = new URL(url).hostname;
-      return providerResponse({
-        1: {
-          index: 1,
-          title: "三清山",
-          extract: "三清山位于上饶市，适合作为自然风光候选。",
-          fullurl: "https://" + hostname + "/wiki/%E4%B8%89%E6%B8%85%E5%B1%B1",
-        },
-      });
-    },
-  });
-  assert.equal(retrieval.source_count, 1);
-  assert.equal(retrieval.sources[0].title, "三清山");
-});
-
-test("free public retrieval returns an honest empty result and safe source failures", async () => {
+test("free public retrieval reports honest empty results and safe source failures", async () => {
   const noResults = await retrieveFreePublicTravelSources(planningPayload(), {
     cache: new Map(),
     fetchImpl: async () => providerResponse({}),
@@ -181,75 +197,108 @@ test("free public retrieval returns an honest empty result and safe source failu
     requires_api_key: false,
     notes: [
       "联网资料查询已启用：无需账号、绑卡或 API Key。",
-      "仅查询目的地；选中的偏好只用于本次方案结构。不要输入个人信息。",
+      "仅会发送目的地和固定映射后的旅行偏好；不会发送备注、预算或个人信息。",
     ],
   });
 });
 
-test("free-source plan retains citations and limits its budget to in-destination play", () => {
-  const retrieval = {
+function sourcedRetrieval() {
+  return {
     mode: "free_public_sources",
     provider: "中文维基导游 / 中文维基百科",
     status: "public_sources",
     retrieved_at: "2026-09-22T12:00:00.000Z",
     cache_age_seconds: 0,
-    source_count: 2,
+    source_count: 3,
     notices: ["行前核验。"],
     sources: [
-      { source_id: "zh-wikivoyage-A", title: "上饶候选一", uri: "https://zh.wikivoyage.org/wiki/A", excerpt: "来源一" },
-      { source_id: "zh-wikipedia-B", title: "上饶候选二", uri: "https://zh.wikipedia.org/wiki/B", excerpt: "来源二" },
+      {
+        source_id: "zh-wikivoyage-nature",
+        title: "三清山",
+        uri: "https://zh.wikivoyage.org/wiki/%E4%B8%89%E6%B8%85%E5%B1%B1",
+        excerpt: "上饶市的自然风光候选。",
+        matched_interests: ["自然风光"],
+        price_evidence: [{ amount_cny: 150, detail: "费用 ¥150。", source_url: "https://zh.wikivoyage.org/wiki/%E4%B8%89%E6%B8%85%E5%B1%B1", pricing_scope: "unspecified" }],
+      },
+      {
+        source_id: "zh-wikipedia-culture",
+        title: "上饶博物馆",
+        uri: "https://zh.wikipedia.org/wiki/%E4%B8%8A%E9%A5%B6",
+        excerpt: "上饶市的人文历史候选。",
+        matched_interests: ["人文历史"],
+        price_evidence: [{ amount_cny: 80, detail: "成人票 ¥80。", source_url: "https://zh.wikipedia.org/wiki/%E4%B8%8A%E9%A5%B6", pricing_scope: "per_person", per_person: true }],
+      },
+      {
+        source_id: "zh-wikivoyage-food",
+        title: "上饶小吃",
+        uri: "https://zh.wikivoyage.org/wiki/%E4%B8%8A%E9%A5%B6",
+        excerpt: "上饶市的本地美食候选。",
+        matched_interests: ["本地美食"],
+        price_evidence: [],
+      },
     ],
   };
-  const plan = buildFreePublicSourcePlan(planningPayload({ start_date: "2026-09-29" }), retrieval);
+}
 
+test("source-backed plan uses only evidence-backed price subtotal and reflects planning inputs", () => {
+  const plan = buildFreePublicSourcePlan(planningPayload({
+    start_date: "2026-09-29",
+    interests: ["自然", "文化"],
+  }), sourcedRetrieval());
   assert.match(plan.plan_id, /^FREE-SOURCES-/);
   assert.equal(plan.request_summary.mock_mode, false);
   assert.equal(plan.request_summary.data_mode, "free_public_sources");
-  assert.equal(plan.request_summary.start_date, "2026-09-29");
-  assert.equal(plan.itinerary.length, 2);
   assert.deepEqual(plan.itinerary.map((day) => day.date_label), ["9月29日", "9月30日"]);
-  assert.ok(plan.itinerary.every((day) => day.items.length >= 4));
-  assert.deepEqual(
-    plan.itinerary.map((day) => day.items.slice(0, 4).map((item) => item.slot)),
-    [["上午", "中午", "下午", "晚上"], ["上午", "中午", "下午", "晚上"]],
-  );
-  assert.match(plan.itinerary[0].items[0].title, /^游览：上饶候选一$/);
-  assert.match(plan.itinerary[0].items[1].description, /不指定餐厅/);
-  assert.match(plan.itinerary[0].items[3].description, /实际预算/);
-  assert.ok(plan.itinerary.flatMap((day) => day.items).every((item) => item.estimated_cost_cny === null));
-  assert.equal(plan.budget.mode, "rough_estimate");
+  assert.ok(plan.itinerary.flatMap((day) => day.items).some((item) => item.source_url));
+  assert.equal(plan.workflow_trace, undefined);
+  assert.equal(plan.budget.mode, "sourced_partial_subtotal");
   assert.equal(plan.budget.pricing_complete, false);
-  assert.ok(plan.budget.estimated_total_cny > 0);
-  assert.match(plan.budget.scope, /不含往返交通与住宿/);
-  assert.ok(plan.budget.recommended_range_cny.minimum < plan.budget.estimated_total_cny);
-  assert.ok(plan.budget.recommended_range_cny.maximum > plan.budget.estimated_total_cny);
-  assert.equal(plan.budget.line_items.some((item) => item.category.includes("住宿")), false);
+  assert.equal(plan.budget.confirmed_subtotal_cny, 160);
+  assert.equal(plan.budget.total_is_complete_trip_budget, false);
+  assert.ok(plan.budget.line_items.some((item) => item.included_in_subtotal && item.amount_cny === 160));
+  assert.ok(plan.budget.line_items.some((item) => !item.included_in_subtotal && item.source_amount_cny === 150));
+  assert.ok(plan.budget.line_items.every((item) => item.evidence_url && item.evidence_text));
+  assert.match(plan.budget.scope, /不把未标价/);
   assert.equal(plan.validation.passed, true);
-  assert.deepEqual(
-    new Set(plan.itinerary.flatMap((day) => day.items.map((item) => item.source_id).filter(Boolean))),
-    new Set(["zh-wikivoyage-A", "zh-wikipedia-B"]),
-  );
-  assert.equal(JSON.stringify(plan).includes("人工"), false);
-  assert.ok(plan.workflow_trace.some((entry) => entry.step === "retrieve_free_public_sources"));
+
+  const oneTraveler = buildFreePublicSourcePlan(planningPayload({ travelers: 1 }), sourcedRetrieval());
+  const oneDay = buildFreePublicSourcePlan(planningPayload({ days: 1 }), sourcedRetrieval());
+  const comfort = buildFreePublicSourcePlan(planningPayload({ days: 2, travel_style: "comfort" }), sourcedRetrieval());
+  const culture = buildFreePublicSourcePlan(planningPayload({ days: 1, interests: ["文化"] }), sourcedRetrieval());
+  assert.equal(oneTraveler.budget.confirmed_subtotal_cny, 80);
+  assert.equal(oneDay.itinerary.length, 1);
+  assert.ok(comfort.itinerary.every((day) => day.data_backed_place_count <= 1));
+  assert.ok(culture.itinerary[0].items.some((item) => item.title.includes("上饶博物馆")));
 });
 
-test("free-source plan keeps a complete schedule when public sources are unavailable", () => {
-  const plan = buildFreePublicSourcePlan(planningPayload(), {
-    mode: "free_public_sources",
-    provider: "中文维基导游 / 中文维基百科",
-    status: "no_results",
-    source_count: 0,
-    sources: [],
-  });
-
-  assert.equal(plan.validation.passed, false);
-  assert.equal(plan.validation.coverage_ok, false);
-  assert.ok(plan.itinerary.every((day) => day.items.length === 4));
-  assert.ok(plan.itinerary.every((day) => day.items[0].title === "暂不推荐具体景点"));
-  assert.equal(JSON.stringify(plan).includes("人工"), false);
+test("source-backed plan does not create a made-up trip total when no prices exist", () => {
+  const retrieval = sourcedRetrieval();
+  retrieval.sources = retrieval.sources.map((source) => ({ ...source, price_evidence: [] }));
+  const plan = buildFreePublicSourcePlan(planningPayload(), retrieval);
+  assert.equal(plan.budget.confirmed_subtotal_cny, null);
+  assert.equal(plan.budget.estimated_total_cny, null);
+  assert.equal(plan.budget.line_items.length, 0);
+  assert.equal(plan.budget.total_is_source_backed, false);
+  assert.match(plan.budget.notice, /不输出看似精确的游玩总价/);
 });
 
-test("free public API routes accept safe inputs, block notes, and keep rate limits", async () => {
+test("alternative ticket prices in one source sentence stay visible but are never added together", () => {
+  const retrieval = sourcedRetrieval();
+  retrieval.sources = [{
+    ...retrieval.sources[0],
+    price_evidence: [
+      { amount_cny: 210, detail: "通票210元/人/5天，单买60元一景点。", source_url: "https://zh.wikivoyage.org/wiki/%E5%A9%BA%E6%BA%90", pricing_scope: "per_person", per_person: true, aggregation_safe: false },
+      { amount_cny: 60, detail: "通票210元/人/5天，单买60元一景点。", source_url: "https://zh.wikivoyage.org/wiki/%E5%A9%BA%E6%BA%90", pricing_scope: "per_person", per_person: true, aggregation_safe: false },
+    ],
+  }];
+  retrieval.source_count = 1;
+  const plan = buildFreePublicSourcePlan(planningPayload(), retrieval);
+  assert.equal(plan.budget.confirmed_subtotal_cny, null);
+  assert.ok(plan.budget.line_items.every((item) => item.included_in_subtotal === false));
+  assert.match(plan.budget.notice, /多个票种可能互斥/);
+});
+
+test("free public API routes accept safe inputs and keep the public rate limit", async () => {
   const originalFetch = globalThis.fetch;
   const captured = [];
   globalThis.fetch = fakePublicSources(captured);
@@ -276,7 +325,6 @@ test("free public API routes accept safe inputs, block notes, and keep rate limi
     }));
     const attractionsBody = await attractionsResponse.json();
     assert.equal(attractionsResponse.status, 200);
-    assert.equal(attractionsResponse.headers.get("netlify-cdn-cache-control"), "public, durable, max-age=300, stale-while-revalidate=300");
     assert.equal(attractionsBody.retrieval.mode, "free_public_sources");
   } finally {
     globalThis.fetch = originalFetch;
