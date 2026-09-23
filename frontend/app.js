@@ -132,7 +132,7 @@
   function setPublicCopy() {
     useFreePublicSources = true;
     environmentLabel.textContent = "免费公开资料";
-    publicDemoNotice.textContent = "不需要 API Key、账号或绑卡。系统只查询目的地和选择的偏好；每个地点与费用会附资料链接。资料价格和开放情况会变化，出发前请打开链接确认。";
+    publicDemoNotice.textContent = "不需要 API Key、账号或绑卡。地点和资料页金额会附来源链接；住宿、餐饮等会以普通消费区间估算并明确标注。资料价格和开放情况会变化，出发前请打开链接确认。";
   }
 
   async function configureDataSource() {
@@ -172,11 +172,11 @@
     const summary = plan.request_summary || {};
     const basis = plan.planning_basis || {};
     const budget = plan.budget || {};
-    const confirmed = cnyRange(budget.confirmed_subtotal_range_cny) || cny(budget.confirmed_subtotal_cny);
+    const estimate = cnyRange(budget.recommended_range_cny) || cny(budget.estimated_total_cny);
     const metrics = [
       [`${Number(summary.days) || 0} 天`, "游玩天数"],
       [`${Number(basis.selected_source_count) || 0} 个`, "已安排资料地点"],
-      [confirmed || "未查到", "可确认费用小计"],
+      [estimate || "待估算", "普通出行总区间"],
     ];
     document.querySelector("#metric-row").innerHTML = metrics
       .map(([value, label]) => `<div class="metric"><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></div>`)
@@ -241,33 +241,34 @@
   }
 
   function renderBudget(budget = {}) {
-    const items = Array.isArray(budget.source_price_items) ? budget.source_price_items : (Array.isArray(budget.line_items) ? budget.line_items : []);
-    const confirmed = cnyRange(budget.confirmed_subtotal_range_cny) || cny(budget.confirmed_subtotal_cny);
+    const items = Array.isArray(budget.line_items) ? budget.line_items : [];
+    const estimate = cnyRange(budget.recommended_range_cny) || cny(budget.estimated_total_cny);
     document.querySelector("#budget-currency").textContent = budget.currency || "CNY";
-    document.querySelector("#budget-scope").textContent = budget.scope || "只显示有公开资料依据的价格；没有出处的消费不会被编进总价。";
+    document.querySelector("#budget-scope").textContent = budget.scope || "按普通消费水平给出区间；来源页中的价格会单独展示。";
 
     if (!items.length) {
-      document.querySelector("#budget").innerHTML = `<div class="no-result"><strong>这次没有查到可直接引用的费用资料。</strong><p>地点资料仍在上方；餐饮、门票和市内出行的实时价格请打开资料页或官方渠道确认。</p></div>`;
+      document.querySelector("#budget").innerHTML = `<div class="no-result"><strong>暂时无法形成费用区间。</strong><p>请检查天数、人数和预算后再试。</p></div>`;
     } else {
       document.querySelector("#budget").innerHTML = `${items.map((item) => {
         const original = amountRange(item, true) || amountRange(item, false) || "资料金额待确认";
-        const calculated = item.included_in_subtotal ? amountRange(item, false) : "未计入小计";
+        const calculated = amountRange(item, false) || original;
         const href = safeUrl(item.evidence_url);
         const evidence = shortText(item.evidence_text, 180);
+        const isSourceFact = item.estimate_type === "source_fact";
         return `<div class="budget-item">
           <div>
-            <strong>${escapeHtml(item.category || "资料中的费用")}</strong>
-            <small>${escapeHtml(evidence || item.assumption || "来源页中的费用信息")}</small>
+            <strong>${escapeHtml(item.category || "普通出行费用")}</strong>
+            <small>${escapeHtml(evidence || item.assumption || "普通出行估算")}</small>
             ${item.assumption ? `<small>${escapeHtml(item.assumption)}</small>` : ""}
             ${href ? `<a class="evidence-link" href="${escapeHtml(href)}" target="_blank" rel="noreferrer">查看费用原文 ↗</a>` : ""}
           </div>
-          <span class="budget-amount">${escapeHtml(item.included_in_subtotal ? calculated : original)}</span>
+          <span class="budget-amount">${escapeHtml(isSourceFact ? original : calculated)}</span>
         </div>`;
       }).join("")}
-      <div class="budget-total"><span>${escapeHtml(budget.total_label || "可确认部分小计")}</span><span>${escapeHtml(confirmed || "无法安全相加")}</span></div>`;
+      <div class="budget-total"><span>${escapeHtml(budget.total_label || "普通出行总区间")}</span><span>${escapeHtml(estimate || "待估算")}</span></div>`;
     }
 
-    const notice = budget.notice || "价格会变化，出发前请确认来源页。";
+    const notice = `${budget.feasibility_label ? `${budget.feasibility_label} ` : ""}${budget.notice || "价格会变化，出发前请确认来源页。"}`;
     travelTip.hidden = false;
     travelTip.textContent = `说明：${notice}`;
   }

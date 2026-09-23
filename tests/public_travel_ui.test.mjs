@@ -25,6 +25,7 @@ test("public travel page defaults to the free source route and exposes source-ba
   assert.match(app, /useFreeRoute \? API\.freePlan : API\.plan/);
   assert.match(app, /查看这条资料/);
   assert.match(app, /查看费用原文/);
-  assert.match(app, /可确认费用小计/);
+  assert.match(app, /普通出行总区间/);
+  assert.match(app, /feasibility_label/);
   assert.doesNotMatch(app, /modelPlan|workflow-trace|人工复核|ticketForm|运营方案/);
 });

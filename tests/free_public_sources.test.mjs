@@ -240,7 +240,7 @@ function sourcedRetrieval() {
   };
 }
 
-test("source-backed plan uses only evidence-backed price subtotal and reflects planning inputs", () => {
+test("source-backed plan builds an ordinary stay, food and local-travel range that reflects planning inputs", () => {
   const plan = buildFreePublicSourcePlan(planningPayload({
     start_date: "2026-09-29",
     interests: ["自然", "文化"],
@@ -251,35 +251,39 @@ test("source-backed plan uses only evidence-backed price subtotal and reflects p
   assert.deepEqual(plan.itinerary.map((day) => day.date_label), ["9月29日", "9月30日"]);
   assert.ok(plan.itinerary.flatMap((day) => day.items).some((item) => item.source_url));
   assert.equal(plan.workflow_trace, undefined);
-  assert.equal(plan.budget.mode, "sourced_partial_subtotal");
+  assert.equal(plan.budget.mode, "ordinary_travel_range");
   assert.equal(plan.budget.pricing_complete, false);
-  assert.equal(plan.budget.confirmed_subtotal_cny, 160);
+  assert.ok(plan.budget.recommended_range_cny.minimum > 0);
+  assert.ok(plan.budget.recommended_range_cny.maximum > plan.budget.recommended_range_cny.minimum);
+  assert.ok(plan.budget.estimated_total_cny > 0);
   assert.equal(plan.budget.total_is_complete_trip_budget, false);
-  assert.ok(plan.budget.line_items.some((item) => item.included_in_subtotal && item.amount_cny === 160));
-  assert.ok(plan.budget.line_items.some((item) => !item.included_in_subtotal && item.source_amount_cny === 150));
-  assert.ok(plan.budget.line_items.every((item) => item.evidence_url && item.evidence_text));
-  assert.match(plan.budget.scope, /不把未标价/);
+  assert.ok(plan.budget.line_items.some((item) => item.category === "普通双人酒店"));
+  assert.ok(plan.budget.line_items.some((item) => item.category === "早餐与平价小吃"));
+  assert.ok(plan.budget.line_items.some((item) => item.category === "晚餐：当地家常菜 / 特色正餐"));
+  assert.ok(plan.budget.line_items.some((item) => item.estimate_type === "source_fact" && item.evidence_url));
+  assert.match(plan.budget.scope, /普通酒店、饮食、市内交通/);
   assert.equal(plan.validation.passed, true);
 
   const oneTraveler = buildFreePublicSourcePlan(planningPayload({ travelers: 1 }), sourcedRetrieval());
   const oneDay = buildFreePublicSourcePlan(planningPayload({ days: 1 }), sourcedRetrieval());
   const comfort = buildFreePublicSourcePlan(planningPayload({ days: 2, travel_style: "comfort" }), sourcedRetrieval());
   const culture = buildFreePublicSourcePlan(planningPayload({ days: 1, interests: ["文化"] }), sourcedRetrieval());
-  assert.equal(oneTraveler.budget.confirmed_subtotal_cny, 80);
+  assert.ok(oneTraveler.budget.recommended_range_cny.maximum < plan.budget.recommended_range_cny.maximum);
   assert.equal(oneDay.itinerary.length, 1);
   assert.ok(comfort.itinerary.every((day) => day.data_backed_place_count <= 1));
   assert.ok(culture.itinerary[0].items.some((item) => item.title.includes("上饶博物馆")));
+  assert.ok(plan.itinerary.every((day) => day.items.at(-1).title.includes("晚餐")));
 });
 
-test("source-backed plan does not create a made-up trip total when no prices exist", () => {
+test("ordinary travel range still works without source prices and labels its assumptions", () => {
   const retrieval = sourcedRetrieval();
   retrieval.sources = retrieval.sources.map((source) => ({ ...source, price_evidence: [] }));
   const plan = buildFreePublicSourcePlan(planningPayload(), retrieval);
-  assert.equal(plan.budget.confirmed_subtotal_cny, null);
-  assert.equal(plan.budget.estimated_total_cny, null);
-  assert.equal(plan.budget.line_items.length, 0);
+  assert.ok(plan.budget.estimated_total_cny > 0);
+  assert.ok(plan.budget.recommended_range_cny.maximum > plan.budget.recommended_range_cny.minimum);
+  assert.ok(plan.budget.line_items.some((item) => item.category === "未标价景点预留"));
   assert.equal(plan.budget.total_is_source_backed, false);
-  assert.match(plan.budget.notice, /不输出看似精确的游玩总价/);
+  assert.match(plan.budget.notice, /普通消费水平/);
 });
 
 test("alternative ticket prices in one source sentence stay visible but are never added together", () => {
@@ -293,9 +297,11 @@ test("alternative ticket prices in one source sentence stay visible but are neve
   }];
   retrieval.source_count = 1;
   const plan = buildFreePublicSourcePlan(planningPayload(), retrieval);
-  assert.equal(plan.budget.confirmed_subtotal_cny, null);
-  assert.ok(plan.budget.line_items.every((item) => item.included_in_subtotal === false));
-  assert.match(plan.budget.notice, /多个票种可能互斥/);
+  const sourceFacts = plan.budget.line_items.filter((item) => item.estimate_type === "source_fact");
+  const visitEstimate = plan.budget.line_items.find((item) => item.category === "资料地点的游玩费用");
+  assert.equal(sourceFacts.length, 2);
+  assert.ok(sourceFacts.every((item) => item.included_in_total === false));
+  assert.deepEqual({ minimum: visitEstimate.minimum_cny, maximum: visitEstimate.maximum_cny }, { minimum: 120, maximum: 420 });
 });
 
 test("free public API routes accept safe inputs and keep the public rate limit", async () => {

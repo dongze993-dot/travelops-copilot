@@ -265,16 +265,16 @@ v2 使用与 `POST /api/v1/plans` 相同的请求体和确定性规划基础，�
 
 ```json
 {
-  "mode": "sourced_partial_subtotal",
+  "mode": "ordinary_travel_range",
   "pricing_complete": false,
   "budget_cap_cny": 2400,
-  "confirmed_subtotal_cny": 160,
-  "summary_label": "可确认的公开价格小计",
-  "total_label": "可确认部分小计"
+  "recommended_range_cny": {"minimum": 1800, "maximum": 3000},
+  "summary_label": "普通出行估算区间",
+  "total_label": "住宿、吃、游、市内交通总区间"
 }
 ```
 
-这表示项目只把来源中金额和计价方式明确、且不属于同页互斥票种的项目纳入局部小计。未标价的餐饮、市内交通、伴手礼、往返交通与住宿不会被编进总价；没有可安全汇总的来源价格时，`confirmed_subtotal_cny` 为 `null`。这不是实时价格、报价或预订承诺。完整边界见 [免费公开资料说明](live-retrieval.md)。
+这表示项目用普通双人酒店、早餐小吃、午餐、晚餐、市内交通、已安排游玩地点和少量伴手礼形成费用区间，并按人数、天数和所选节奏计算。来源中的金额另以带 URL 的 `source_price_items` 展示；同页互斥票种不会相加。区间不含往返目的地的大交通、购物大额消费和预订手续费，也不是实时价格、报价或预订承诺。完整边界见 [免费公开资料说明](live-retrieval.md)。
 
 ## `POST /api/v1/tickets`
 
